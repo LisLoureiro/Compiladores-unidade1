@@ -2,6 +2,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -822,10 +823,19 @@ public class AnalisadorLexicoAFD {
         );
 
         // ---------- arquivo de saída ----------
-        Files.write(
-            Paths.get(arquivoSaida),
-            saida.toString().getBytes(StandardCharsets.UTF_8)
-        );
+        try {
+            Files.write(
+                Paths.get(arquivoSaida),
+                saida.toString().getBytes(StandardCharsets.UTF_8)
+            );
+        } catch (IOException | InvalidPathException e) {
+            System.err.println(
+                "Nao foi possivel gravar em '" + arquivoSaida
+                + "': " + e.getMessage()
+            );
+            System.exit(2);
+            return;
+        }
 
         System.out.println("Saída gravada em: " + arquivoSaida);
 
