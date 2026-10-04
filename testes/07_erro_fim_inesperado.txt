@@ -1,0 +1,5 @@
+program semfim;
+var a : integer;
+begin
+  a := 1;
+  a := 2;

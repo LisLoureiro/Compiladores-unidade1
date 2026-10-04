@@ -1,0 +1,17 @@
+program controle;
+var i, n, achou : integer;
+begin
+  n := 10;
+  i := 0;
+  while i < n do
+  begin
+    i := i + 1;
+    if i > 5 then
+      if i < 8 then
+        achou := i
+      else
+        achou := 0;
+  end;
+  while achou do
+    achou := 0;
+end.

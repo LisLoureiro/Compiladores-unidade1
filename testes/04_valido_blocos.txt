@@ -1,0 +1,19 @@
+program blocos;
+var a : integer;
+begin
+  a := 0;
+  begin
+    a := a + 1;
+    begin
+      a := a + 1;
+    end;
+    if a > 2 then
+    begin
+      a := a - 1;
+    end;
+  end;
+  while a < 10 do
+  begin
+    a := a + 1;
+  end;
+end.

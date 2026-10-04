@@ -1,0 +1,16 @@
+program exemplo;
+var x, y, soma : integer;
+    ok : boolean;
+begin
+  x := 10;
+  y := 3;
+  soma := x + y * 2 - (x - 1) / 2;
+  read(x, y);
+  write("Soma = ", soma);
+  if soma > 0 then
+    writeln("positivo")
+  else
+    writeln("nao positivo");
+  while x < 100 do
+    x := x + 1;
+end.
