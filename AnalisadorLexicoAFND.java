@@ -21,11 +21,11 @@ import java.util.Set;
  * 2) Identificador
  * 3) Número Inteiro
  * 4) Número Real
- * 5) Operador Aritmético   (+ - * / %  e  "mod")
- * 6) Operador Relacional   (> >= < <= <> == !=)
- * 7) Operador Lógico       ("and" "or" "not"  e  && ||)
- * 8) Símbolo Especial      ( ( ) , ; : )
- * 9) Atribuição            ( :=  e  = )
+ * 5) Operador Aritmético   (+ - * /  e  "mod")
+ * 6) Operador Relacional   (= > >= < <= <>)
+ * 7) Operador Lógico       ("and" "or" "not")
+ * 8) Símbolo Especial      ( = ( ) , ; : )
+ * 9) Atribuição            ( := )
  * 10) Fim                  ( . )
  */
 public class AnalisadorLexicoAFND {
@@ -335,17 +335,8 @@ public class AnalisadorLexicoAFND {
         AFND afnd = new AFND("q0");
 
         /*
-         * Atribuição aceita duas formas:
-         *
-         * ":=" :
-         *   q0 --":"--> q1
-         *   q1 --"="--> q2   (final)
-         *
-         * "=" :
-         *   q0 --"="--> q3   (final)
-         *
-         * O "==" NÃO é atribuição: é operador relacional de igualdade
-         * (ver criarAFNDRelacional).
+         * q0 --":"--> q1
+         * q1 --"="--> q2   (final)
          */
 
         afnd.adicionarTransicao(
@@ -356,12 +347,7 @@ public class AnalisadorLexicoAFND {
             "q1", "=", "q2"
         );
 
-        afnd.adicionarTransicao(
-            "q0", "=", "q3"
-        );
-
         afnd.adicionarEstadoFinal("q2");
-        afnd.adicionarEstadoFinal("q3");
 
         return afnd;
     }
@@ -377,59 +363,45 @@ public class AnalisadorLexicoAFND {
         /*
          * Operadores:
          *
+         * =
          * >
          * >=
          * <
          * <=
          * <>
-         * ==
-         * !=
          */
 
         afnd.adicionarTransicao(
-            "q0", ">", "q1"
+            "q0", "=", "q1"
         );
 
         afnd.adicionarTransicao(
-            "q0", "<", "q2"
+            "q0", ">", "q2"
         );
 
         afnd.adicionarTransicao(
-            "q0", "=", "q3"
+            "q0", "<", "q3"
         );
 
         afnd.adicionarTransicao(
-            "q0", "!", "q4"
+            "q2", "=", "q4"
         );
 
         afnd.adicionarTransicao(
-            "q1", "=", "q5"
+            "q3", "=", "q5"
         );
 
         afnd.adicionarTransicao(
-            "q2", "=", "q6"
-        );
-
-        afnd.adicionarTransicao(
-            "q2", ">", "q7"
-        );
-
-        afnd.adicionarTransicao(
-            "q3", "=", "q8"
-        );
-
-        afnd.adicionarTransicao(
-            "q4", "=", "q9"
+            "q3", ">", "q6"
         );
 
         // Estados finais
-        afnd.adicionarEstadoFinal("q1"); // >
-        afnd.adicionarEstadoFinal("q2"); // <
-        afnd.adicionarEstadoFinal("q5"); // >=
-        afnd.adicionarEstadoFinal("q6"); // <=
-        afnd.adicionarEstadoFinal("q7"); // <>
-        afnd.adicionarEstadoFinal("q8"); // ==
-        afnd.adicionarEstadoFinal("q9"); // !=
+        afnd.adicionarEstadoFinal("q1"); // =
+        afnd.adicionarEstadoFinal("q2"); // >
+        afnd.adicionarEstadoFinal("q3"); // <
+        afnd.adicionarEstadoFinal("q4"); // >=
+        afnd.adicionarEstadoFinal("q5"); // <=
+        afnd.adicionarEstadoFinal("q6"); // <>
 
         return afnd;
     }
@@ -444,11 +416,11 @@ public class AnalisadorLexicoAFND {
 
         /*
          * q0 -- aritmetico --> q1  (final)
-         * Aceita: +  -  *  /  %
+         * Aceita: +  -  *  /
          */
 
         String[] operadores = {
-            "+", "-", "*", "/", "%"
+            "+", "-", "*", "/"
         };
 
         for (String operador : operadores) {
@@ -464,44 +436,6 @@ public class AnalisadorLexicoAFND {
     }
 
     // ============================================================
-    // AFND PARA OPERADORES LÓGICOS DE SÍMBOLO
-    // ============================================================
-
-    static AFND criarAFNDLogico() {
-
-        AFND afnd = new AFND("q0");
-
-        /*
-         * &&
-         * ||
-         *
-         * Observação: "&" e "|" isolados NÃO são reconhecidos, pois só
-         * existem as formas compostas.
-         */
-
-        afnd.adicionarTransicao(
-            "q0", "&", "q1"
-        );
-
-        afnd.adicionarTransicao(
-            "q0", "|", "q2"
-        );
-
-        afnd.adicionarTransicao(
-            "q1", "&", "q3"
-        );
-
-        afnd.adicionarTransicao(
-            "q2", "|", "q4"
-        );
-
-        afnd.adicionarEstadoFinal("q3");
-        afnd.adicionarEstadoFinal("q4");
-
-        return afnd;
-    }
-
-    // ============================================================
     // AFND PARA SÍMBOLOS ESPECIAIS
     // ============================================================
 
@@ -510,7 +444,7 @@ public class AnalisadorLexicoAFND {
         AFND afnd = new AFND("q0");
 
         String[] simbolos = {
-            "(", ")", ",", ";", ":"
+            "=", "(", ")", ",", ";", ":"
         };
 
         for (String simbolo : simbolos) {
@@ -588,7 +522,7 @@ public class AnalisadorLexicoAFND {
 
     // Operadores de dois caracteres, na ordem em que são testados.
     static final String[] OPERADORES_DOIS_CARACTERES = {
-        ":=", ">=", "<=", "<>", "==", "!=", "&&", "||"
+        ":=", ">=", "<=", "<>"
     };
 
     static void analisar(String codigo) {
@@ -599,7 +533,6 @@ public class AnalisadorLexicoAFND {
         AFND afndAtribuicao = criarAFNDAtribuicao();
         AFND afndRelacional = criarAFNDRelacional();
         AFND afndAritmetico = criarAFNDAritmetico();
-        AFND afndLogico = criarAFNDLogico();
         AFND afndSimboloEspecial = criarAFNDSimboloEspecial();
         AFND afndFim = criarAFNDFim();
 
@@ -789,10 +722,6 @@ public class AnalisadorLexicoAFND {
 
                         imprimir(operador, "ATRIBUICAO", linha, coluna);
 
-                    } else if (afndLogico.reconhecer(operador)) {
-
-                        imprimir(operador, "OPERADOR_LOGICO", linha, coluna);
-
                     } else if (afndRelacional.reconhecer(operador)) {
 
                         imprimir(operador, "OPERADOR_RELACIONAL", linha, coluna);
@@ -904,10 +833,11 @@ public class AnalisadorLexicoAFND {
         "    y: real;\n" +
         "begin\n" +
         "  x := 13 mod 4;\n" +
-        "  x = x % 2;\n" +
         "  y := 24.40e-04 * 1.33 / (x + 1);\n" +
-        "  if (x == 0) || (y != 2.5) && not (y < 2.5) then\n" +
+        "  if x >= 1 and not (y < 2.5) then\n" +
         "    x := x + 1;\n" +
+        "  if x = 0 or y <> 2.5 then\n" +
+        "    x := x - 1;\n" +
         "  read(x);\n" +
         "  write(y);\n" +
         "end.\n";
@@ -927,7 +857,6 @@ public class AnalisadorLexicoAFND {
             criarAFNDAtribuicao().imprimir("Atribuicao");
             criarAFNDRelacional().imprimir("Relacional");
             criarAFNDAritmetico().imprimir("Aritmetico");
-            criarAFNDLogico().imprimir("Logico");
             criarAFNDSimboloEspecial().imprimir("SimboloEspecial");
             criarAFNDFim().imprimir("Fim");
 

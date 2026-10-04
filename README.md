@@ -13,10 +13,11 @@ algum estado final foi atingido.
 
 O scanner percorre o texto e recorta o **maior lexema possível** (*maximal
 munch*), usando o AFND correspondente para validá-lo. Os pares ambíguos são
-resolvidos pelo maior casamento: `=` × `==`, `:` × `:=`, `<` × `<=` × `<>`,
-`&` × `&&`, `|` × `||` (vence sempre a cadeia mais longa). A prioridade entre
-palavra reservada, operador-palavra e identificador é decidida pela ordem das
-verificações.
+resolvidos pelo maior casamento: `:` × `:=` e `<` × `<=` × `<>` (vence sempre a
+cadeia mais longa). A prioridade entre palavra reservada, operador-palavra e
+identificador é decidida pela ordem das verificações. O `=` é aceito pelo
+operador relacional e pelo símbolo especial; vence o **relacional**, testado
+primeiro.
 
 ### Classes léxicas
 
@@ -26,20 +27,14 @@ verificações.
 | 2 | Identificador | `x`, `variavel`, `i`, `var2` |
 | 3 | Número Inteiro | `1`, `13` |
 | 4 | Número Real | `1.33`, `24.40e-04` |
-| 5 | Operador Aritmético | `+` `-` `*` `/` `%` `mod` |
-| 6 | Operador Relacional | `>` `>=` `<` `<=` `<>` `==` `!=` |
-| 7 | Operador Lógico | `and` `or` `not` `&&` `||` |
-| 8 | Símbolo Especial | `(` `)` `,` `;` `:` |
-| 9 | Atribuição | `:=` `=` |
+| 5 | Operador Aritmético | `+` `-` `*` `/` `mod` |
+| 6 | Operador Relacional | `=` `>` `>=` `<` `<=` `<>` |
+| 7 | Operador Lógico | `and` `or` `not` |
+| 8 | Símbolo Especial | `=` `(` `)` `,` `;` `:` |
+| 9 | Atribuição | `:=` |
 | 10 | Fim | `.` |
 
-Observações desta linguagem:
-
-- `=` é **atribuição**; `==` é **igualdade relacional** e `!=` é **diferença**
-  (estilo C), convivendo com `<>` da linguagem original.
-- `&&` e `||` são operadores lógicos; um `&` ou `|` isolado **não** é
-  reconhecido (erro léxico), pois só existem as formas compostas.
-- Comentários (`/* ... */`) e strings **não** fazem parte do escopo.
+Observação: comentários (`/* ... */`) e strings **não** fazem parte do escopo.
 
 ## Arquivos
 
@@ -98,7 +93,7 @@ há pelo menos um, o que facilita o uso em scripts.
 | `03_valido_maior_casamento.txt` | válido | `read`×`readx`, `while`×`while2`, `<=`×`<`, `<>`×`<`. |
 | `04_erro_caractere_invalido.txt` | erro | Caractere `#` não pertence à linguagem. |
 | `05_erro_caracteres_invalidos.txt` | erro | Vários caracteres inválidos (`@`, `$`) — reporta cada erro e conta corretamente. |
-| `06_valido_operadores_novos.txt` | válido | Novos símbolos: `%`, `==`, `!=`, `&&`, `||`, `=` (atribuição), convivendo com `<>`, `and`, `<=`. |
+| `06_valido_mod_logicos.txt` | válido | `mod`, `=`, `<>`, `and`, `or`, `not` com `>=`, `<=`, `:=`. |
 
 > `3.14.15` **não** é erro léxico: pela regra do maior casamento o léxico produz
 > `3.14` (Número Real), `.` (Fim) e `15` (Número Inteiro). Trata-se de um erro

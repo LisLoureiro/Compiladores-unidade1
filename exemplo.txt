@@ -3,7 +3,7 @@ var x, y, contador: integer;
     media, taxa: real;
 begin
   x := 13;
-  x = x % 2;
+  x := x mod 2;
   y := 4;
   contador := 0;
   media := 24.40e-04;
@@ -15,7 +15,7 @@ begin
     contador := contador + 1;
   end;
 
-  if (x == 0) || (y != 2) && not (media < 2.5) then
+  if x = 0 or y <> 2 and not (media < 2.5) then
     media := (x mod y) * 1.5
   else
     media := x / y + taxa;
