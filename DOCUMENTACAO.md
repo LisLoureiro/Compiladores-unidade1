@@ -121,6 +121,12 @@ Para recompilar (requer JDK):
 
     compilar.bat  /  ./compilar.sh
 
+Também é possível analisar um texto **sem criar arquivo**, passando-o direto na
+linha de comando (`--cadeia`) ou digitando na entrada padrão (`-`):
+
+    java AnalisadorLexicoAFD --cadeia "if a <= b then x := 1;"
+    echo "x := 1+2;" | java AnalisadorLexicoAFD -
+
 O programa retorna 0 se não houver erro léxico e 1 caso haja.
 
 ## 5. O que foi feito

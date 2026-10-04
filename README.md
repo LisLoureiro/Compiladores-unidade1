@@ -93,13 +93,22 @@ Para recompilar (requer JDK):
 
 ## Opções de linha de comando
 
-    java AnalisadorLexicoAFD [entrada.txt] [saida.txt] [--afd]
+    java AnalisadorLexicoAFD [entrada.txt | -] [saida.txt] [--afd]
+    java AnalisadorLexicoAFD --cadeia "texto a analisar" [saida.txt]
 
 | Opção | Efeito |
 |---|---|
 | `--afd` | Imprime os estados finais e a tabela de transições do AFD. |
+| `--cadeia "..."` | Analisa o texto passado direto na linha de comando. |
+| `-` ou `--stdin` | Lê o programa da entrada padrão (digite e finalize com Ctrl+Z, ENTER no Windows, ou Ctrl+D no Linux/macOS). |
 | `entrada.txt` | Programa a analisar (padrão: exemplo embutido). |
 | `saida.txt` | Arquivo de saída dos pares (padrão: `saida.txt`). |
+
+Exemplos:
+
+    java AnalisadorLexicoAFD --cadeia "if a <= b then x := 1;"
+    java AnalisadorLexicoAFD --cadeia "x := 24.40e-04;"
+    echo "x := 1+2;" | java AnalisadorLexicoAFD -
 
 O programa retorna **código de saída 0** quando não há erro léxico e **1** quando
 há pelo menos um, o que facilita o uso em scripts.

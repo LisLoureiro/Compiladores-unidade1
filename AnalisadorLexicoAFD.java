@@ -1,4 +1,6 @@
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -34,7 +36,9 @@ import java.util.Locale;
  *  Uso:
  *    javac -encoding UTF-8 AnalisadorLexicoAFD.java
  *    java AnalisadorLexicoAFD entrada.txt [saida.txt]
- *    java AnalisadorLexicoAFD --afd        (imprime a tabela do AFD)
+ *    java AnalisadorLexicoAFD --afd                 (imprime a tabela do AFD)
+ *    java AnalisadorLexicoAFD --cadeia "x := 1+2;"  (analisa um texto direto)
+ *    java AnalisadorLexicoAFD -                     (lê da entrada padrão)
  *
  *  Sem informar entrada, o programa analisa um exemplo embutido.
  *  Código de saída: 0 (sem erros) ou 1 (houve erro léxico).
@@ -666,26 +670,90 @@ public class AnalisadorLexicoAFD {
         return sb.toString();
     }
 
-    public static void main(String[] args) throws IOException {
+    /** Lê toda a entrada de um fluxo (usado para a entrada padrão). */
+    static byte[] lerTudo(InputStream in) throws IOException {
 
-        if (args.length > 0 && args[0].equals("--afd")) {
-            imprimirAFD();
-            return;
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        byte[] bloco = new byte[4096];
+        int lidos;
+
+        while ((lidos = in.read(bloco)) > 0) {
+            bos.write(bloco, 0, lidos);
         }
+
+        return bos.toByteArray();
+    }
+
+    public static void main(String[] args) throws IOException {
 
         String arquivoEntrada = null;
         String arquivoSaida = "saida.txt";
+        String cadeiaDireta = null;
+        boolean lerStdin = false;
+        List<String> posicionais = new ArrayList<String>();
 
-        if (args.length >= 1) {
-            arquivoEntrada = args[0];
+        for (int i = 0; i < args.length; i++) {
+
+            String a = args[i];
+
+            if (a.equals("--afd")) {
+                imprimirAFD();
+                return;
+            }
+
+            if (a.equals("--cadeia")) {
+
+                if (i + 1 >= args.length) {
+                    System.err.println("Uso: --cadeia \"texto a analisar\"");
+                    System.exit(2);
+                    return;
+                }
+
+                cadeiaDireta = args[++i];
+
+            } else {
+                posicionais.add(a);
+            }
         }
-        if (args.length >= 2) {
-            arquivoSaida = args[1];
+
+        if (cadeiaDireta != null) {
+
+            // com --cadeia, o 1º argumento posicional é o arquivo de saída
+            if (!posicionais.isEmpty()) {
+                arquivoSaida = posicionais.get(0);
+            }
+
+        } else if (!posicionais.isEmpty()) {
+
+            String p = posicionais.get(0);
+
+            if (p.equals("-") || p.equals("--stdin")) {
+                lerStdin = true;
+            } else {
+                arquivoEntrada = p;
+            }
+
+            if (posicionais.size() >= 2) {
+                arquivoSaida = posicionais.get(1);
+            }
         }
 
         String fonte;
 
-        if (arquivoEntrada != null) {
+        if (cadeiaDireta != null) {
+
+            fonte = cadeiaDireta;
+
+        } else if (lerStdin) {
+
+            System.err.println(
+                "Lendo da entrada padrao. Finalize com Ctrl+Z e ENTER "
+                + "(Windows) ou Ctrl+D (Linux/macOS)."
+            );
+
+            fonte = new String(lerTudo(System.in), StandardCharsets.UTF_8);
+
+        } else if (arquivoEntrada != null) {
 
             try {
                 fonte = new String(
