@@ -2,7 +2,7 @@
 
 Trabalho Prático da I Unidade — disciplina de **Compiladores** (UESB/DCET).
 
-**Integrantes:** _(preencher)_
+**Integrantes:** Lis Loureiro e Laiana
 **Data:** _(preencher)_
 
 ---
