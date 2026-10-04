@@ -9,27 +9,27 @@
  *   - palavra reservada (ex.: "read") x identificador  -> palavra reservada;
  *   - operadores escritos como palavras ("and", "or", "not", "mod") x
  *     identificador                                    -> operador;
- *   - "=" aceito por Operador Relacional e por Símbolo Especial -> relacional
- *     (o relacional vem antes do símbolo especial).
+ *   - "=" e "==" são resolvidos pelo maior casamento (o ramo de dois
+ *     caracteres "==" vence o de um caractere "=").
  */
 public enum TipoToken {
 
     /** 1) Palavra Reservada. */
     PALAVRA_RESERVADA("Palavra Reservada"),
 
-    /** 5) Operador Aritmético (símbolos "+ - * /" e a palavra "mod"). */
+    /** 5) Operador Aritmético (símbolos "+ - * / %" e a palavra "mod"). */
     OPERADOR_ARITMETICO("Operador Aritmético"),
 
-    /** 7) Operador Lógico ("and", "or", "not"). */
+    /** 7) Operador Lógico ("and", "or", "not", "&&", "||"). */
     OPERADOR_LOGICO("Operador Lógico"),
 
-    /** 6) Operador Relacional ("=", ">=", ">", "<", "<=", "<>"). */
+    /** 6) Operador Relacional (">", ">=", "<", "<=", "<>", "==", "!="). */
     OPERADOR_RELACIONAL("Operador Relacional"),
 
-    /** 8) Símbolo Especial ("=", "(", ")", ",", ";", ":"). */
+    /** 8) Símbolo Especial ("(", ")", ",", ";", ":"). */
     SIMBOLO_ESPECIAL("Símbolo Especial"),
 
-    /** 9) Atribuição (":="). */
+    /** 9) Atribuição (":=" e "="). */
     ATRIBUICAO("Atribuição"),
 
     /** 4) Número Real (ex.: 1.33, 24.40e-04). */

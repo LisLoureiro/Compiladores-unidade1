@@ -1,0 +1,12 @@
+program teste06;
+var a, b: integer;
+    r: real;
+begin
+  a := 10;
+  b = a % 3;
+  r := 24.0 / 4;
+  if (a == b) || (a != 0) && (a <> b) then
+    a := a + 1;
+  if a >= b and a <= 10 then
+    b := a - 1;
+end.

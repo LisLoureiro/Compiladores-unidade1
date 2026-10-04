@@ -19,11 +19,11 @@ aceito pelo AFND. Empates são desfeitos pela ordem de prioridade declarada em
 | # | Classe | Exemplos |
 |---|---|---|
 | 1 | Palavra Reservada | `program`, `var`, `if`, `while`, `read` |
-| 5 | Operador Aritmético | `+` `-` `*` `/` `mod` |
-| 7 | Operador Lógico | `and` `or` `not` |
-| 6 | Operador Relacional | `=` `>=` `>` `<` `<=` `<>` |
-| 8 | Símbolo Especial | `=` `(` `)` `,` `;` `:` |
-| 9 | Atribuição | `:=` |
+| 5 | Operador Aritmético | `+` `-` `*` `/` `%` `mod` |
+| 7 | Operador Lógico | `and` `or` `not` `&&` `||` |
+| 6 | Operador Relacional | `>` `>=` `<` `<=` `<>` `==` `!=` |
+| 8 | Símbolo Especial | `(` `)` `,` `;` `:` |
+| 9 | Atribuição | `:=` `=` |
 | 4 | Número Real | `1.33`, `24.40e-04` |
 | 3 | Número Inteiro | `1`, `13` |
 | 10 | Fim | `.` |
@@ -31,8 +31,16 @@ aceito pelo AFND. Empates são desfeitos pela ordem de prioridade declarada em
 
 Empates previstos: palavra reservada × identificador (vence a palavra
 reservada); operadores-palavra `and`/`or`/`not`/`mod` × identificador (vence o
-operador); `=` aceito por relacional e por símbolo especial (vence o
-relacional, declarado antes).
+operador). Os pares `=` × `==`, `:` × `:=`, `<` × `<=` × `<>`, `&` × `&&`,
+`|` × `||` são resolvidos pelo **maior casamento** (vence a cadeia mais longa).
+
+Observações desta linguagem:
+
+- `=` é **atribuição**; `==` é **igualdade relacional** e `!=` é **diferença**
+  (estilo C), convivendo com `<>` da linguagem original.
+- `&&` e `||` são operadores lógicos; um `&` ou `|` isolado **não** é
+  reconhecido (erro léxico), pois só existem as formas compostas.
+- Comentários (`/* ... */`) e strings **não** fazem parte do escopo.
 
 ## Arquivos
 
@@ -42,7 +50,7 @@ relacional, declarado antes).
 | `Token.java` | Representação de um token (tipo, lexema, linha, coluna). |
 | `AnalisadorLexicoAFND.java` | O AFND e a simulação (maior casamento) + CLI. |
 | `exemplo.txt` | Programa de exemplo usando todas as classes. |
-| `testes/` | 05 arquivos de teste (válidos e com erros léxicos). |
+| `testes/` | 06 arquivos de teste (válidos e com erros léxicos). |
 
 ## Como executar
 
@@ -93,6 +101,7 @@ há pelo menos um, o que facilita o uso em scripts.
 | `03_valido_maior_casamento.txt` | válido | `read`×`readx`, `while`×`while2`, `<=`×`<`, `<>`×`<`. |
 | `04_erro_caractere_invalido.txt` | erro | Caractere `#` não pertence à linguagem. |
 | `05_erro_caracteres_invalidos.txt` | erro | Vários caracteres inválidos (`@`, `$`) — reporta cada erro e conta corretamente. |
+| `06_valido_operadores_novos.txt` | válido | Novos símbolos: `%`, `==`, `!=`, `&&`, `||`, `=` (atribuição), convivendo com `<>`, `and`, `<=`. |
 
 > `3.14.15` **não** é erro léxico: pela regra do maior casamento o léxico produz
 > `3.14` (Número Real), `.` (Fim) e `15` (Número Inteiro). Trata-se de um erro

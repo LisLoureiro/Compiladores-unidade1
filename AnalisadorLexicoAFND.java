@@ -227,23 +227,30 @@ public final class AnalisadorLexicoAFND {
         m.aresta(n6, n6, digito, "dígito");
         m.marcarFinal(n6, TipoToken.NUMERO_REAL);
 
-        // 5) Operadores aritméticos de símbolo: + - * /
-        for (String op : new String[] {"+", "-", "*", "/"}) {
+        // 5) Operadores aritméticos de símbolo: + - * / %
+        for (String op : new String[] {"+", "-", "*", "/", "%"}) {
             caminho(m, op, TipoToken.OPERADOR_ARITMETICO);
         }
 
-        // 6) Operadores relacionais: = >= > < <= <>
-        for (String op : new String[] {"=", ">=", ">", "<", "<=", "<>"}) {
+        // 7) Operadores lógicos de símbolo: && ||
+        for (String op : new String[] {"&&", "||"}) {
+            caminho(m, op, TipoToken.OPERADOR_LOGICO);
+        }
+
+        // 6) Operadores relacionais: > >= < <= <> == !=
+        for (String op : new String[] {">", ">=", "<", "<=", "<>", "==", "!="}) {
             caminho(m, op, TipoToken.OPERADOR_RELACIONAL);
         }
 
-        // 8) Símbolos especiais: = ( ) , ; :
-        for (String s : new String[] {"=", "(", ")", ",", ";", ":"}) {
+        // 8) Símbolos especiais: ( ) , ; :
+        for (String s : new String[] {"(", ")", ",", ";", ":"}) {
             caminho(m, s, TipoToken.SIMBOLO_ESPECIAL);
         }
 
-        // 9) Atribuição: :=
+        // 9) Atribuição: := e = (o "==" é reconhecido pelo ramo relacional,
+        //    pois o maior casamento prefere a cadeia de dois caracteres).
         caminho(m, ":=", TipoToken.ATRIBUICAO);
+        caminho(m, "=", TipoToken.ATRIBUICAO);
 
         // 10) Fim: .
         caminho(m, ".", TipoToken.FIM);
@@ -335,8 +342,9 @@ public final class AnalisadorLexicoAFND {
         "    y: real;\n" +
         "begin\n" +
         "  x := 13 mod 4;\n" +
+        "  x = x % 2;\n" +
         "  y := 24.40e-04 * 1.33 / (x + 1);\n" +
-        "  if x >= 1 and not (y < 2.5) then\n" +
+        "  if (x == 0) || (y != 2.5) && not (y < 2.5) then\n" +
         "    x := x + 1;\n" +
         "  read(x);\n" +
         "  write(y);\n" +
