@@ -1,0 +1,6 @@
+program teste04;
+var x: integer;
+begin
+  x := 10 # 2;
+  write(x);
+end.

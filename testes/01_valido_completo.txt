@@ -1,0 +1,14 @@
+program teste01;
+var a, b: integer;
+    r: real;
+begin
+  a := 10;
+  b := 3;
+  r := 24.40e-04;
+  if a >= b and not (r < 1.0) then
+    r := (a mod b) * 1.33
+  else
+    r := a / b + 0.5;
+  read(a);
+  write(r);
+end.

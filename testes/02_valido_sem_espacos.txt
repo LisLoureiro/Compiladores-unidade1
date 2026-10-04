@@ -1,0 +1,1 @@
+program teste02;var x,y:integer;begin x:=1+2;y:=10-3;x:=x*2;y:=y/2;end.

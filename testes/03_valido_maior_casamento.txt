@@ -1,0 +1,10 @@
+program teste03;
+var readx, while2: integer;
+begin
+  readx := 1;
+  while2 := 2;
+  read(readx);
+  write(while2);
+  if readx <= while2 then readx := readx + 1;
+  if readx <> 0 then while2 := while2 - 1;
+end.
