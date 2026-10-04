@@ -2,339 +2,901 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Deque;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.TreeMap;
-import java.util.TreeSet;
-import java.util.function.IntPredicate;
 
-/**
- * Analisador Léxico da linguagem do Trabalho Prático da I Unidade,
- * implementado por um ÚNICO Autômato Finito NÃO Determinístico (AFND).
+/*
+ * ANALISADOR LÉXICO UTILIZANDO AFND
  *
- * O autômato possui um estado inicial (q0) com transições-ε para o
- * sub-autômato de CADA classe léxica. A simulação percorre o texto mantendo o
- * CONJUNTO de estados ativos (fecho-ε + movimento) e aplica a regra do MAIOR
- * CASAMENTO (maximal munch): o token reconhecido é o maior prefixo aceito pelo
- * AFND. Empates são desfeitos pela ordem de prioridade declarada em
- * {@link TipoToken}.
+ * Arquitetura: um AFND independente por classe léxica (sem transições-ε).
+ * O scanner percorre o texto, recorta o maior lexema possível (maior
+ * casamento) e usa o AFND correspondente para validá-lo.
  *
- * Classes léxicas contempladas:
- *   1) Palavra Reservada       6) Operador Relacional
- *   2) Identificador           7) Operador Lógico
- *   3) Número Inteiro          8) Símbolo Especial
- *   4) Número Real             9) Atribuição
- *   5) Operador Aritmético    10) Fim
+ * Classes léxicas:
  *
- * Uso:
- *   javac -encoding UTF-8 *.java
- *   java AnalisadorLexicoAFND programa.txt     (analisa um arquivo)
- *   java AnalisadorLexicoAFND                  (analisa o programa de exemplo)
- *   java AnalisadorLexicoAFND --afnd           (imprime a tabela de transições do AFND)
+ * 1) Palavra Reservada
+ * 2) Identificador
+ * 3) Número Inteiro
+ * 4) Número Real
+ * 5) Operador Aritmético   (+ - * / %  e  "mod")
+ * 6) Operador Relacional   (> >= < <= <> == !=)
+ * 7) Operador Lógico       ("and" "or" "not"  e  && ||)
+ * 8) Símbolo Especial      ( ( ) , ; : )
+ * 9) Atribuição            ( :=  e  = )
+ * 10) Fim                  ( . )
  */
-public final class AnalisadorLexicoAFND {
+public class AnalisadorLexicoAFND {
 
-    // ------------------------------------------------------------------
-    // Palavras da linguagem
-    // ------------------------------------------------------------------
-    /** Palavras reservadas (classe 1). Ajuste conforme a linguagem do trabalho. */
-    public static final String[] PALAVRAS_RESERVADAS = {
-        "program", "var", "integer", "real", "begin", "end",
-        "if", "then", "else", "while", "do", "read", "write"
+    // ============================================================
+    // REPRESENTAÇÃO DE UMA TRANSIÇÃO
+    // ============================================================
+
+    static class Transicao {
+
+        String origem;
+        String simbolo;
+        String destino;
+
+        Transicao(String origem, String simbolo, String destino) {
+            this.origem = origem;
+            this.simbolo = simbolo;
+            this.destino = destino;
+        }
+    }
+
+    // ============================================================
+    // REPRESENTAÇÃO DO AFND
+    // ============================================================
+
+    static class AFND {
+
+        String estadoInicial;
+
+        Set<String> estadosFinais;
+
+        List<Transicao> transicoes;
+
+        AFND(String estadoInicial) {
+            this.estadoInicial = estadoInicial;
+            this.estadosFinais = new HashSet<>();
+            this.transicoes = new ArrayList<>();
+        }
+
+        // Adiciona um estado final
+        void adicionarEstadoFinal(String estado) {
+            estadosFinais.add(estado);
+        }
+
+        // Adiciona uma transição
+        void adicionarTransicao(
+                String origem,
+                String simbolo,
+                String destino) {
+
+            transicoes.add(
+                new Transicao(origem, simbolo, destino)
+            );
+        }
+
+        // Retorna os possíveis estados alcançados
+        // por uma determinada transição.
+        //
+        // "LETRA"  -> qualquer letra
+        // "DIGITO" -> qualquer dígito
+        // outro    -> o próprio caractere (comparação literal)
+        Set<String> mover(
+                Set<String> estadosAtuais,
+                char simboloAtual) {
+
+            Set<String> novosEstados = new HashSet<>();
+
+            for (String estado : estadosAtuais) {
+
+                for (Transicao transicao : transicoes) {
+
+                    if (!transicao.origem.equals(estado)) {
+                        continue;
+                    }
+
+                    boolean casa =
+                        (transicao.simbolo.equals("LETRA")
+                            && Character.isLetter(simboloAtual))
+                        ||
+                        (transicao.simbolo.equals("DIGITO")
+                            && Character.isDigit(simboloAtual))
+                        ||
+                        transicao.simbolo.equals(
+                            String.valueOf(simboloAtual)
+                        );
+
+                    if (casa) {
+                        novosEstados.add(transicao.destino);
+                    }
+                }
+            }
+
+            return novosEstados;
+        }
+
+        // Executa o AFND sobre uma palavra
+        boolean reconhecer(String palavra) {
+
+            Set<String> estadosAtuais = new HashSet<>();
+
+            estadosAtuais.add(estadoInicial);
+
+            for (int i = 0; i < palavra.length(); i++) {
+
+                char simbolo = palavra.charAt(i);
+
+                estadosAtuais =
+                    mover(estadosAtuais, simbolo);
+
+                // Não existe transição possível
+                if (estadosAtuais.isEmpty()) {
+                    return false;
+                }
+            }
+
+            // Verifica se algum estado atual é final
+            for (String estado : estadosAtuais) {
+
+                if (estadosFinais.contains(estado)) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        // Imprime a tabela de transições deste AFND
+        void imprimir(String nome) {
+
+            System.out.println(
+                "AFND " + nome + "  (inicial " + estadoInicial + ")"
+            );
+
+            for (Transicao transicao : transicoes) {
+
+                System.out.println(
+                    "  d(" + transicao.origem
+                    + ", " + transicao.simbolo
+                    + ") = " + transicao.destino
+                );
+            }
+
+            System.out.print("  Finais:");
+
+            for (String finalState : estadosFinais) {
+                System.out.print(" " + finalState);
+            }
+
+            System.out.println();
+        }
+    }
+
+    // ============================================================
+    // AFND PARA IDENTIFICADORES
+    // ============================================================
+
+    static AFND criarAFNDIdentificador() {
+
+        AFND afnd = new AFND("q0");
+
+        /*
+         * q0 --LETRA--> q1
+         * q1 --LETRA--> q1
+         * q1 --DIGITO-> q1
+         */
+
+        afnd.adicionarTransicao(
+            "q0", "LETRA", "q1"
+        );
+
+        afnd.adicionarTransicao(
+            "q1", "LETRA", "q1"
+        );
+
+        afnd.adicionarTransicao(
+            "q1", "DIGITO", "q1"
+        );
+
+        // q1 é estado final
+        afnd.adicionarEstadoFinal("q1");
+
+        return afnd;
+    }
+
+    // ============================================================
+    // AFND PARA NÚMERO INTEIRO
+    // ============================================================
+
+    static AFND criarAFNDInteiro() {
+
+        AFND afnd = new AFND("q0");
+
+        /*
+         * q0 --DIGITO--> q1
+         * q1 --DIGITO--> q1
+         */
+
+        afnd.adicionarTransicao(
+            "q0", "DIGITO", "q1"
+        );
+
+        afnd.adicionarTransicao(
+            "q1", "DIGITO", "q1"
+        );
+
+        afnd.adicionarEstadoFinal("q1");
+
+        return afnd;
+    }
+
+    // ============================================================
+    // AFND PARA NÚMERO REAL
+    // ============================================================
+
+    static AFND criarAFNDReal() {
+
+        AFND afnd = new AFND("q0");
+
+        /*
+         * Parte inteira:
+         *
+         * q0 --DIGITO--> q1
+         * q1 --DIGITO--> q1
+         *
+         * Parte decimal:
+         *
+         * q1 --"."-----> q2
+         * q2 --DIGITO--> q3
+         * q3 --DIGITO--> q3
+         *
+         * Expoente:
+         *
+         * q3 --e/E-----> q4
+         * q4 --+/- ----> q5
+         * q4 --DIGITO-> q6
+         * q5 --DIGITO-> q6
+         * q6 --DIGITO-> q6
+         */
+
+        afnd.adicionarTransicao(
+            "q0", "DIGITO", "q1"
+        );
+
+        afnd.adicionarTransicao(
+            "q1", "DIGITO", "q1"
+        );
+
+        afnd.adicionarTransicao(
+            "q1", ".", "q2"
+        );
+
+        afnd.adicionarTransicao(
+            "q2", "DIGITO", "q3"
+        );
+
+        afnd.adicionarTransicao(
+            "q3", "DIGITO", "q3"
+        );
+
+        // Expoente com e
+        afnd.adicionarTransicao(
+            "q3", "e", "q4"
+        );
+
+        // Expoente com E
+        afnd.adicionarTransicao(
+            "q3", "E", "q4"
+        );
+
+        // Sinal positivo ou negativo
+        afnd.adicionarTransicao(
+            "q4", "+", "q5"
+        );
+
+        afnd.adicionarTransicao(
+            "q4", "-", "q5"
+        );
+
+        // Expoente sem sinal
+        afnd.adicionarTransicao(
+            "q4", "DIGITO", "q6"
+        );
+
+        afnd.adicionarTransicao(
+            "q5", "DIGITO", "q6"
+        );
+
+        afnd.adicionarTransicao(
+            "q6", "DIGITO", "q6"
+        );
+
+        // Número real sem expoente
+        afnd.adicionarEstadoFinal("q3");
+
+        // Número real com expoente
+        afnd.adicionarEstadoFinal("q6");
+
+        return afnd;
+    }
+
+    // ============================================================
+    // AFND PARA ATRIBUIÇÃO
+    // ============================================================
+
+    static AFND criarAFNDAtribuicao() {
+
+        AFND afnd = new AFND("q0");
+
+        /*
+         * Atribuição aceita duas formas:
+         *
+         * ":=" :
+         *   q0 --":"--> q1
+         *   q1 --"="--> q2   (final)
+         *
+         * "=" :
+         *   q0 --"="--> q3   (final)
+         *
+         * O "==" NÃO é atribuição: é operador relacional de igualdade
+         * (ver criarAFNDRelacional).
+         */
+
+        afnd.adicionarTransicao(
+            "q0", ":", "q1"
+        );
+
+        afnd.adicionarTransicao(
+            "q1", "=", "q2"
+        );
+
+        afnd.adicionarTransicao(
+            "q0", "=", "q3"
+        );
+
+        afnd.adicionarEstadoFinal("q2");
+        afnd.adicionarEstadoFinal("q3");
+
+        return afnd;
+    }
+
+    // ============================================================
+    // AFND PARA OPERADORES RELACIONAIS
+    // ============================================================
+
+    static AFND criarAFNDRelacional() {
+
+        AFND afnd = new AFND("q0");
+
+        /*
+         * Operadores:
+         *
+         * >
+         * >=
+         * <
+         * <=
+         * <>
+         * ==
+         * !=
+         */
+
+        afnd.adicionarTransicao(
+            "q0", ">", "q1"
+        );
+
+        afnd.adicionarTransicao(
+            "q0", "<", "q2"
+        );
+
+        afnd.adicionarTransicao(
+            "q0", "=", "q3"
+        );
+
+        afnd.adicionarTransicao(
+            "q0", "!", "q4"
+        );
+
+        afnd.adicionarTransicao(
+            "q1", "=", "q5"
+        );
+
+        afnd.adicionarTransicao(
+            "q2", "=", "q6"
+        );
+
+        afnd.adicionarTransicao(
+            "q2", ">", "q7"
+        );
+
+        afnd.adicionarTransicao(
+            "q3", "=", "q8"
+        );
+
+        afnd.adicionarTransicao(
+            "q4", "=", "q9"
+        );
+
+        // Estados finais
+        afnd.adicionarEstadoFinal("q1"); // >
+        afnd.adicionarEstadoFinal("q2"); // <
+        afnd.adicionarEstadoFinal("q5"); // >=
+        afnd.adicionarEstadoFinal("q6"); // <=
+        afnd.adicionarEstadoFinal("q7"); // <>
+        afnd.adicionarEstadoFinal("q8"); // ==
+        afnd.adicionarEstadoFinal("q9"); // !=
+
+        return afnd;
+    }
+
+    // ============================================================
+    // AFND PARA OPERADORES ARITMÉTICOS
+    // ============================================================
+
+    static AFND criarAFNDAritmetico() {
+
+        AFND afnd = new AFND("q0");
+
+        /*
+         * q0 -- aritmetico --> q1  (final)
+         * Aceita: +  -  *  /  %
+         */
+
+        String[] operadores = {
+            "+", "-", "*", "/", "%"
+        };
+
+        for (String operador : operadores) {
+
+            afnd.adicionarTransicao(
+                "q0", operador, "q1"
+            );
+        }
+
+        afnd.adicionarEstadoFinal("q1");
+
+        return afnd;
+    }
+
+    // ============================================================
+    // AFND PARA OPERADORES LÓGICOS DE SÍMBOLO
+    // ============================================================
+
+    static AFND criarAFNDLogico() {
+
+        AFND afnd = new AFND("q0");
+
+        /*
+         * &&
+         * ||
+         *
+         * Observação: "&" e "|" isolados NÃO são reconhecidos, pois só
+         * existem as formas compostas.
+         */
+
+        afnd.adicionarTransicao(
+            "q0", "&", "q1"
+        );
+
+        afnd.adicionarTransicao(
+            "q0", "|", "q2"
+        );
+
+        afnd.adicionarTransicao(
+            "q1", "&", "q3"
+        );
+
+        afnd.adicionarTransicao(
+            "q2", "|", "q4"
+        );
+
+        afnd.adicionarEstadoFinal("q3");
+        afnd.adicionarEstadoFinal("q4");
+
+        return afnd;
+    }
+
+    // ============================================================
+    // AFND PARA SÍMBOLOS ESPECIAIS
+    // ============================================================
+
+    static AFND criarAFNDSimboloEspecial() {
+
+        AFND afnd = new AFND("q0");
+
+        String[] simbolos = {
+            "(", ")", ",", ";", ":"
+        };
+
+        for (String simbolo : simbolos) {
+
+            afnd.adicionarTransicao(
+                "q0", simbolo, "q1"
+            );
+        }
+
+        afnd.adicionarEstadoFinal("q1");
+
+        return afnd;
+    }
+
+    // ============================================================
+    // AFND PARA FIM
+    // ============================================================
+
+    static AFND criarAFNDFim() {
+
+        AFND afnd = new AFND("q0");
+
+        afnd.adicionarTransicao(
+            "q0", ".", "q1"
+        );
+
+        afnd.adicionarEstadoFinal("q1");
+
+        return afnd;
+    }
+
+    // ============================================================
+    // PALAVRAS / OPERADORES ESCRITOS COMO PALAVRAS
+    // ============================================================
+
+    static Set<String> palavrasReservadas =
+        new HashSet<>(Arrays.asList(
+            "program",
+            "var",
+            "integer",
+            "real",
+            "begin",
+            "end",
+            "if",
+            "then",
+            "else",
+            "while",
+            "do",
+            "read",
+            "write"
+        ));
+
+    static Set<String> operadoresLogicos =
+        new HashSet<>(Arrays.asList(
+            "and",
+            "or",
+            "not"
+        ));
+
+    static Set<String> operadoresAritmeticosPalavra =
+        new HashSet<>(Arrays.asList(
+            "mod"
+        ));
+
+    // ============================================================
+    // CONTADORES
+    // ============================================================
+
+    static int totalTokens = 0;
+    static int errosLexicos = 0;
+
+    // ============================================================
+    // ANALISADOR LÉXICO
+    // ============================================================
+
+    // Operadores de dois caracteres, na ordem em que são testados.
+    static final String[] OPERADORES_DOIS_CARACTERES = {
+        ":=", ">=", "<=", "<>", "==", "!=", "&&", "||"
     };
 
-    /** Operadores lógicos escritos como palavras (classe 7). */
-    public static final String[] PALAVRAS_LOGICAS = { "and", "or", "not" };
+    static void analisar(String codigo) {
 
-    /** Operadores aritméticos escritos como palavras (classe 5). */
-    public static final String[] PALAVRAS_ARITMETICAS = { "mod" };
+        AFND afndIdentificador = criarAFNDIdentificador();
+        AFND afndInteiro = criarAFNDInteiro();
+        AFND afndReal = criarAFNDReal();
+        AFND afndAtribuicao = criarAFNDAtribuicao();
+        AFND afndRelacional = criarAFNDRelacional();
+        AFND afndAritmetico = criarAFNDAritmetico();
+        AFND afndLogico = criarAFNDLogico();
+        AFND afndSimboloEspecial = criarAFNDSimboloEspecial();
+        AFND afndFim = criarAFNDFim();
 
-    // ------------------------------------------------------------------
-    // AFND
-    // ------------------------------------------------------------------
-    static final class AFND {
-        static final class Aresta {
-            final IntPredicate rotulo;   // null = transição-ε
-            final String descricao;
-            final int destino;
+        totalTokens = 0;
+        errosLexicos = 0;
 
-            Aresta(IntPredicate rotulo, String descricao, int destino) {
-                this.rotulo = rotulo;
-                this.descricao = descricao;
-                this.destino = destino;
-            }
-        }
+        System.out.printf(
+            "%-6s %-6s %-20s %s%n",
+            "LINHA", "COL", "CLASSE", "LEXEMA"
+        );
+        System.out.println(
+            "------------------------------------------------------------"
+        );
 
-        private final List<List<Aresta>> transicoes = new ArrayList<List<Aresta>>();
-        private final TreeMap<Integer, TipoToken> finais = new TreeMap<Integer, TipoToken>();
-        final int inicial;
-
-        AFND() {
-            inicial = novoEstado();
-        }
-
-        int novoEstado() {
-            transicoes.add(new ArrayList<Aresta>());
-            return transicoes.size() - 1;
-        }
-
-        void aresta(int origem, int destino, IntPredicate rotulo, String descricao) {
-            transicoes.get(origem).add(new Aresta(rotulo, descricao, destino));
-        }
-
-        void epsilon(int origem, int destino) {
-            transicoes.get(origem).add(new Aresta(null, "ε", destino));
-        }
-
-        void marcarFinal(int estado, TipoToken tipo) {
-            finais.put(estado, tipo);
-        }
-
-        /** Fecho-ε de um conjunto de estados. */
-        Set<Integer> fecho(Set<Integer> estados) {
-            Set<Integer> resultado = new TreeSet<Integer>(estados);
-            Deque<Integer> pilha = new ArrayDeque<Integer>(estados);
-            while (!pilha.isEmpty()) {
-                int e = pilha.pop();
-                for (Aresta a : transicoes.get(e)) {
-                    if (a.rotulo == null && resultado.add(a.destino)) {
-                        pilha.push(a.destino);
-                    }
-                }
-            }
-            return resultado;
-        }
-
-        /** Estados alcançáveis lendo o caractere c (sem fecho-ε). */
-        Set<Integer> mover(Set<Integer> estados, int c) {
-            Set<Integer> resultado = new TreeSet<Integer>();
-            for (int e : estados) {
-                for (Aresta a : transicoes.get(e)) {
-                    if (a.rotulo != null && a.rotulo.test(c)) {
-                        resultado.add(a.destino);
-                    }
-                }
-            }
-            return resultado;
-        }
-
-        /** Classes aceitas pelo conjunto de estados, em ordem de prioridade. */
-        List<TipoToken> aceitos(Set<Integer> estados) {
-            List<TipoToken> tipos = new ArrayList<TipoToken>();
-            for (TipoToken t : TipoToken.values()) {
-                for (int e : estados) {
-                    if (finais.get(e) == t) {
-                        tipos.add(t);
-                        break;
-                    }
-                }
-            }
-            return tipos;
-        }
-
-        void imprimir() {
-            System.out.println("AFND ÚNICO: estado inicial = q" + inicial
-                    + "  (" + transicoes.size() + " estados)");
-            System.out.println("Estados finais:");
-            for (java.util.Map.Entry<Integer, TipoToken> e : finais.entrySet()) {
-                System.out.println("  q" + e.getKey() + " -> " + e.getValue().nome);
-            }
-            System.out.println("Transições:");
-            for (int e = 0; e < transicoes.size(); e++) {
-                for (Aresta a : transicoes.get(e)) {
-                    System.out.println("  d(q" + e + ", " + a.descricao + ") = q" + a.destino);
-                }
-            }
-        }
-    }
-
-    // ------------------------------------------------------------------
-    // Construção do AFND único (com ε-transições a partir de q0)
-    // ------------------------------------------------------------------
-    static IntPredicate igual(final char c) {
-        return new IntPredicate() {
-            public boolean test(int x) { return x == c; }
-        };
-    }
-
-    /** Ramo do AFND, ligado a q0 por transição-ε, que reconhece a cadeia dada. */
-    static void caminho(AFND m, String cadeia, TipoToken tipo) {
-        int atual = m.novoEstado();
-        m.epsilon(m.inicial, atual);
-        for (int k = 0; k < cadeia.length(); k++) {
-            char c = cadeia.charAt(k);
-            int prox = m.novoEstado();
-            m.aresta(atual, prox, igual(c), "'" + c + "'");
-            atual = prox;
-        }
-        m.marcarFinal(atual, tipo);
-    }
-
-    /** Constrói o AFND único que contempla TODAS as classes léxicas. */
-    public static AFND construirAFND() {
-        AFND m = new AFND();
-        IntPredicate letra = new IntPredicate() {
-            public boolean test(int c) { return Character.isLetter(c); }
-        };
-        IntPredicate digito = new IntPredicate() {
-            public boolean test(int c) { return c >= '0' && c <= '9'; }
-        };
-        IntPredicate letraOuDigito = new IntPredicate() {
-            public boolean test(int c) {
-                return Character.isLetter(c) || (c >= '0' && c <= '9');
-            }
-        };
-        IntPredicate expoente = new IntPredicate() {
-            public boolean test(int c) { return c == 'e' || c == 'E'; }
-        };
-        IntPredicate sinal = new IntPredicate() {
-            public boolean test(int c) { return c == '+' || c == '-'; }
-        };
-
-        // 1) Palavras reservadas.
-        for (String p : PALAVRAS_RESERVADAS) caminho(m, p, TipoToken.PALAVRA_RESERVADA);
-
-        // 5) e 7) Operadores escritos como palavras.
-        for (String w : PALAVRAS_ARITMETICAS) caminho(m, w, TipoToken.OPERADOR_ARITMETICO);
-        for (String w : PALAVRAS_LOGICAS) caminho(m, w, TipoToken.OPERADOR_LOGICO);
-
-        // 2) Identificador: letra (letra | dígito)*
-        int i0 = m.novoEstado(), i1 = m.novoEstado();
-        m.epsilon(m.inicial, i0);
-        m.aresta(i0, i1, letra, "letra");
-        m.aresta(i1, i1, letraOuDigito, "letra|dígito");
-        m.marcarFinal(i1, TipoToken.IDENTIFICADOR);
-
-        // 3) e 4) Números: inteiro dígito+  e  real dígito+ '.' dígito+ ((e|E)(+|-)?dígito+)?
-        int n0 = m.novoEstado(), n1 = m.novoEstado(), n2 = m.novoEstado(), n3 = m.novoEstado();
-        int n4 = m.novoEstado(), n5 = m.novoEstado(), n6 = m.novoEstado();
-        m.epsilon(m.inicial, n0);
-        m.aresta(n0, n1, digito, "dígito");
-        m.aresta(n1, n1, digito, "dígito");
-        m.marcarFinal(n1, TipoToken.NUMERO_INTEIRO);
-        m.aresta(n1, n2, igual('.'), "'.'");
-        m.aresta(n2, n3, digito, "dígito");
-        m.aresta(n3, n3, digito, "dígito");
-        m.marcarFinal(n3, TipoToken.NUMERO_REAL);
-        m.aresta(n3, n4, expoente, "'e'|'E'");
-        m.aresta(n4, n5, sinal, "'+'|'-'");
-        m.aresta(n4, n6, digito, "dígito");
-        m.aresta(n5, n6, digito, "dígito");
-        m.aresta(n6, n6, digito, "dígito");
-        m.marcarFinal(n6, TipoToken.NUMERO_REAL);
-
-        // 5) Operadores aritméticos de símbolo: + - * / %
-        for (String op : new String[] {"+", "-", "*", "/", "%"}) {
-            caminho(m, op, TipoToken.OPERADOR_ARITMETICO);
-        }
-
-        // 7) Operadores lógicos de símbolo: && ||
-        for (String op : new String[] {"&&", "||"}) {
-            caminho(m, op, TipoToken.OPERADOR_LOGICO);
-        }
-
-        // 6) Operadores relacionais: > >= < <= <> == !=
-        for (String op : new String[] {">", ">=", "<", "<=", "<>", "==", "!="}) {
-            caminho(m, op, TipoToken.OPERADOR_RELACIONAL);
-        }
-
-        // 8) Símbolos especiais: ( ) , ; :
-        for (String s : new String[] {"(", ")", ",", ";", ":"}) {
-            caminho(m, s, TipoToken.SIMBOLO_ESPECIAL);
-        }
-
-        // 9) Atribuição: := e = (o "==" é reconhecido pelo ramo relacional,
-        //    pois o maior casamento prefere a cadeia de dois caracteres).
-        caminho(m, ":=", TipoToken.ATRIBUICAO);
-        caminho(m, "=", TipoToken.ATRIBUICAO);
-
-        // 10) Fim: .
-        caminho(m, ".", TipoToken.FIM);
-
-        return m;
-    }
-
-    // ------------------------------------------------------------------
-    // Simulação do AFND (maior casamento)
-    // ------------------------------------------------------------------
-    /** Converte o texto em uma lista de tokens (espaços em branco são ignorados). */
-    public static List<Token> analisar(AFND afnd, String texto) {
-        List<Token> tokens = new ArrayList<Token>();
-        int i = 0, linha = 1, coluna = 1, n = texto.length();
+        int i = 0;
+        int linha = 1;
+        int coluna = 1;
+        int n = codigo.length();
 
         while (i < n) {
-            char c = texto.charAt(i);
-            if (c == '\n') { linha++; coluna = 1; i++; continue; }
-            if (Character.isWhitespace(c)) { coluna++; i++; continue; }
 
-            Set<Integer> atual = afnd.fecho(Collections.singleton(afnd.inicial));
-            int j = i, melhorFim = -1;
-            List<TipoToken> melhorTipos = null;
+            char c = codigo.charAt(i);
 
-            while (true) {
-                List<TipoToken> aceitos = afnd.aceitos(atual);
-                if (!aceitos.isEmpty()) {
-                    melhorFim = j;
-                    melhorTipos = aceitos;
-                }
-                if (j >= n) break;
-                Set<Integer> prox = afnd.mover(atual, texto.charAt(j));
-                if (prox.isEmpty()) break;
-                atual = afnd.fecho(prox);
-                j++;
-            }
-
-            if (melhorFim < 0) {
-                tokens.add(Token.erro(String.valueOf(c), linha, coluna,
-                        "caractere não reconhecido"));
+            // Ignorar quebras de linha
+            if (c == '\n') {
+                linha++;
+                coluna = 1;
                 i++;
+                continue;
+            }
+
+            // Ignorar demais espaços
+            if (Character.isWhitespace(c)) {
                 coluna++;
-            } else {
-                String lexema = texto.substring(i, melhorFim);
-                TipoToken tipo = melhorTipos.get(0); // maior prioridade
-                tokens.add(Token.valido(tipo, lexema, linha, coluna));
+                i++;
+                continue;
+            }
+
+            // ====================================================
+            // PALAVRAS / IDENTIFICADORES
+            // ====================================================
+
+            if (Character.isLetter(c)) {
+
+                int inicio = i;
+
+                while (
+                    i < n
+                    &&
+                    (
+                        Character.isLetter(codigo.charAt(i))
+                        ||
+                        Character.isDigit(codigo.charAt(i))
+                    )
+                ) {
+                    i++;
+                }
+
+                String lexema = codigo.substring(inicio, i);
+
+                if (palavrasReservadas.contains(lexema)) {
+
+                    imprimir(lexema, "PALAVRA_RESERVADA", linha, coluna);
+
+                } else if (operadoresLogicos.contains(lexema)) {
+
+                    imprimir(lexema, "OPERADOR_LOGICO", linha, coluna);
+
+                } else if (
+                    operadoresAritmeticosPalavra.contains(lexema)
+                ) {
+
+                    imprimir(lexema, "OPERADOR_ARITMETICO", linha, coluna);
+
+                } else if (afndIdentificador.reconhecer(lexema)) {
+
+                    imprimir(lexema, "IDENTIFICADOR", linha, coluna);
+
+                } else {
+
+                    imprimir(lexema, "ERRO_LEXICO", linha, coluna);
+                }
+
                 coluna += lexema.length();
-                i = melhorFim;
+                continue;
             }
-        }
-        return tokens;
-    }
 
-    public static List<Token> analisar(String texto) {
-        return analisar(construirAFND(), texto);
-    }
+            // ====================================================
+            // NÚMEROS
+            // ====================================================
+            //
+            // Maior casamento para o número:
+            //   dígitos ( "." dígitos ( (e|E) (+|-)? dígitos )? )?
+            //
+            // Importante: o "+" e o "-" só entram no lexema quando
+            // formam o expoente. Assim "1+2" gera três tokens
+            // (1, +, 2) e "10-3" gera (10, -, 3).
 
-    // ------------------------------------------------------------------
-    // Saída e main
-    // ------------------------------------------------------------------
-    static void imprimirTokens(List<Token> tokens) {
-        System.out.printf("%-6s %-6s %-20s %s%n", "LINHA", "COL", "CLASSE", "LEXEMA");
-        System.out.println(repetir('-', 60));
-        int erros = 0;
-        for (Token t : tokens) {
-            if (t.isErro()) {
-                erros++;
-                System.out.printf("%-6d %-6d %-20s %s%n", t.linha, t.coluna,
-                        "ERRO LÉXICO", "'" + t.lexema + "' (" + t.erro + ")");
+            if (Character.isDigit(c)) {
+
+                int inicio = i;
+
+                // Parte inteira
+                while (i < n && Character.isDigit(codigo.charAt(i))) {
+                    i++;
+                }
+
+                // Parte decimal: só se houver um dígito depois do ponto
+                if (
+                    i + 1 < n
+                    && codigo.charAt(i) == '.'
+                    && Character.isDigit(codigo.charAt(i + 1))
+                ) {
+
+                    i++; // consome o '.'
+
+                    while (i < n && Character.isDigit(codigo.charAt(i))) {
+                        i++;
+                    }
+
+                    // Expoente opcional: (e|E) (+|-)? dígito+
+                    if (
+                        i < n
+                        && (codigo.charAt(i) == 'e'
+                            || codigo.charAt(i) == 'E')
+                    ) {
+
+                        int j = i + 1;
+
+                        if (
+                            j < n
+                            && (codigo.charAt(j) == '+'
+                                || codigo.charAt(j) == '-')
+                        ) {
+                            j++;
+                        }
+
+                        // Só consome o expoente se vier ao menos um dígito
+                        if (j < n && Character.isDigit(codigo.charAt(j))) {
+
+                            i = j;
+
+                            while (i < n
+                                    && Character.isDigit(codigo.charAt(i))) {
+                                i++;
+                            }
+                        }
+                    }
+                }
+
+                String lexema = codigo.substring(inicio, i);
+
+                if (afndReal.reconhecer(lexema)) {
+
+                    imprimir(lexema, "NUMERO_REAL", linha, coluna);
+
+                } else if (afndInteiro.reconhecer(lexema)) {
+
+                    imprimir(lexema, "NUMERO_INTEIRO", linha, coluna);
+
+                } else {
+
+                    imprimir(lexema, "ERRO_LEXICO", linha, coluna);
+                }
+
+                coluna += lexema.length();
+                continue;
+            }
+
+            // ====================================================
+            // OPERADORES DE DOIS CARACTERES (: = > < ! & |)
+            // ====================================================
+
+            boolean consumiuDois = false;
+
+            if (i + 1 < n) {
+
+                String dois = codigo.substring(i, i + 2);
+
+                for (String operador : OPERADORES_DOIS_CARACTERES) {
+
+                    if (!operador.equals(dois)) {
+                        continue;
+                    }
+
+                    if (afndAtribuicao.reconhecer(operador)) {
+
+                        imprimir(operador, "ATRIBUICAO", linha, coluna);
+
+                    } else if (afndLogico.reconhecer(operador)) {
+
+                        imprimir(operador, "OPERADOR_LOGICO", linha, coluna);
+
+                    } else if (afndRelacional.reconhecer(operador)) {
+
+                        imprimir(operador, "OPERADOR_RELACIONAL", linha, coluna);
+
+                    } else {
+
+                        imprimir(operador, "ERRO_LEXICO", linha, coluna);
+                    }
+
+                    i += 2;
+                    coluna += 2;
+                    consumiuDois = true;
+                    break;
+                }
+            }
+
+            if (consumiuDois) {
+                continue;
+            }
+
+            // ====================================================
+            // OPERADORES DE UM CARACTER
+            // ====================================================
+
+            String operador = String.valueOf(c);
+
+            if (afndRelacional.reconhecer(operador)) {
+
+                imprimir(operador, "OPERADOR_RELACIONAL", linha, coluna);
+
+            } else if (afndAtribuicao.reconhecer(operador)) {
+
+                imprimir(operador, "ATRIBUICAO", linha, coluna);
+
+            } else if (afndAritmetico.reconhecer(operador)) {
+
+                imprimir(operador, "OPERADOR_ARITMETICO", linha, coluna);
+
+            } else if (afndSimboloEspecial.reconhecer(operador)) {
+
+                imprimir(operador, "SIMBOLO_ESPECIAL", linha, coluna);
+
+            } else if (afndFim.reconhecer(operador)) {
+
+                imprimir(operador, "FIM", linha, coluna);
+
             } else {
-                System.out.printf("%-6d %-6d %-20s %s%n", t.linha, t.coluna,
-                        t.classeNome(), t.lexema);
+
+                imprimir(operador, "ERRO_LEXICO", linha, coluna);
             }
+
+            i++;
+            coluna++;
         }
-        System.out.println(repetir('-', 60));
-        System.out.println("Total de tokens: " + (tokens.size() - erros)
-                + " | Erros léxicos: " + erros);
+
+        System.out.println(
+            "------------------------------------------------------------"
+        );
+
+        System.out.println(
+            "Total de tokens: " + totalTokens
+            + " | Erros léxicos: " + errosLexicos
+        );
     }
 
-    static String repetir(char c, int n) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < n; i++) sb.append(c);
-        return sb.toString();
+    // ============================================================
+    // IMPRESSÃO
+    // ============================================================
+
+    static void imprimir(
+            String lexema,
+            String classe,
+            int linha,
+            int coluna) {
+
+        if (classe.equals("ERRO_LEXICO")) {
+
+            errosLexicos++;
+
+            System.out.printf(
+                "%-6d %-6d %-20s %s%n",
+                linha,
+                coluna,
+                "ERRO LÉXICO",
+                "'" + lexema + "' (caractere não reconhecido)"
+            );
+
+        } else {
+
+            totalTokens++;
+
+            System.out.printf(
+                "%-6d %-6d %-20s %s%n",
+                linha,
+                coluna,
+                classe,
+                lexema
+            );
+        }
     }
+
+    // ============================================================
+    // PROGRAMA DE EXEMPLO
+    // ============================================================
 
     static final String EXEMPLO =
         "program exemplo;\n" +
@@ -350,40 +912,70 @@ public final class AnalisadorLexicoAFND {
         "  write(y);\n" +
         "end.\n";
 
-    public static void main(String[] args) throws IOException {
-        AFND afnd = construirAFND();
+    // ============================================================
+    // MAIN
+    // ============================================================
 
+    public static void main(String[] args) throws IOException {
+
+        // --afnd: imprime a tabela de transições de cada AFND
         if (args.length > 0 && args[0].equals("--afnd")) {
-            afnd.imprimir();
+
+            criarAFNDIdentificador().imprimir("Identificador");
+            criarAFNDInteiro().imprimir("Inteiro");
+            criarAFNDReal().imprimir("Real");
+            criarAFNDAtribuicao().imprimir("Atribuicao");
+            criarAFNDRelacional().imprimir("Relacional");
+            criarAFNDAritmetico().imprimir("Aritmetico");
+            criarAFNDLogico().imprimir("Logico");
+            criarAFNDSimboloEspecial().imprimir("SimboloEspecial");
+            criarAFNDFim().imprimir("Fim");
+
             return;
         }
 
-        String texto;
+        String codigo;
+
         if (args.length > 0) {
+
             try {
-                texto = new String(Files.readAllBytes(Paths.get(args[0])), StandardCharsets.UTF_8);
+                codigo = new String(
+                    Files.readAllBytes(Paths.get(args[0])),
+                    StandardCharsets.UTF_8
+                );
             } catch (IOException e) {
-                System.err.println("Erro ao ler o arquivo '" + args[0] + "': " + e.getMessage());
+                System.err.println(
+                    "Erro ao ler o arquivo '"
+                    + args[0] + "': " + e.getMessage()
+                );
                 System.exit(2);
                 return;
             }
+
         } else {
-            texto = EXEMPLO;
-            System.out.println("Nenhum arquivo informado. Analisando o programa de exemplo:\n");
-            System.out.println(texto);
+
+            codigo = EXEMPLO;
+
+            System.out.println(
+                "Nenhum arquivo informado. "
+                + "Analisando o programa de exemplo:\n"
+            );
+            System.out.println(codigo);
         }
 
-        List<Token> tokens = analisar(afnd, texto);
-        imprimirTokens(tokens);
+        System.out.println(
+            "========== ANALISADOR LÉXICO AFND ==========\n"
+        );
+        System.out.println("Código analisado:\n");
+        System.out.println(codigo);
+        System.out.println(
+            "\n========== TOKENS ==========\n"
+        );
 
-        for (Token t : tokens) {
-            if (t.isErro()) {
-                System.exit(1);
-                return;
-            }
+        analisar(codigo);
+
+        if (errosLexicos > 0) {
+            System.exit(1);
         }
-    }
-
-    private AnalisadorLexicoAFND() {
     }
 }

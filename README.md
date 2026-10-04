@@ -2,37 +2,36 @@
 
 Trabalho Prático da I Unidade da disciplina de **Compiladores** (UESB/DCET).
 Implementa, em Java, um **analisador léxico** para a linguagem definida no
-enunciado, construído como um **único Autômato Finito Não Determinístico (AFND)
-com transições-ε**.
+enunciado, construído com **um AFND por classe léxica** (sem transições-ε).
 
 ## Como o léxico funciona
 
-O AFND tem um estado inicial `q0` com transições-ε para o sub-autômato de
-**cada** uma das 10 classes léxicas. A simulação percorre o texto mantendo o
-**conjunto de estados ativos** (fecho-ε + movimento) e aplica a regra do
-**maior casamento** (*maximal munch*): o token reconhecido é o maior prefixo
-aceito pelo AFND. Empates são desfeitos pela ordem de prioridade declarada em
-[`TipoToken.java`](TipoToken.java).
+Há um AFND independente para cada classe (`criarAFNDIdentificador`,
+`criarAFNDReal`, `criarAFNDRelacional`, ...). Cada AFND é simulado pelo método
+`AFND.reconhecer`, que mantém o **conjunto de estados ativos** e verifica se
+algum estado final foi atingido.
 
-### Classes léxicas (ordem = prioridade de desempate)
+O scanner percorre o texto e recorta o **maior lexema possível** (*maximal
+munch*), usando o AFND correspondente para validá-lo. Os pares ambíguos são
+resolvidos pelo maior casamento: `=` × `==`, `:` × `:=`, `<` × `<=` × `<>`,
+`&` × `&&`, `|` × `||` (vence sempre a cadeia mais longa). A prioridade entre
+palavra reservada, operador-palavra e identificador é decidida pela ordem das
+verificações.
+
+### Classes léxicas
 
 | # | Classe | Exemplos |
 |---|---|---|
 | 1 | Palavra Reservada | `program`, `var`, `if`, `while`, `read` |
+| 2 | Identificador | `x`, `variavel`, `i`, `var2` |
+| 3 | Número Inteiro | `1`, `13` |
+| 4 | Número Real | `1.33`, `24.40e-04` |
 | 5 | Operador Aritmético | `+` `-` `*` `/` `%` `mod` |
-| 7 | Operador Lógico | `and` `or` `not` `&&` `||` |
 | 6 | Operador Relacional | `>` `>=` `<` `<=` `<>` `==` `!=` |
+| 7 | Operador Lógico | `and` `or` `not` `&&` `||` |
 | 8 | Símbolo Especial | `(` `)` `,` `;` `:` |
 | 9 | Atribuição | `:=` `=` |
-| 4 | Número Real | `1.33`, `24.40e-04` |
-| 3 | Número Inteiro | `1`, `13` |
 | 10 | Fim | `.` |
-| 2 | Identificador | `x`, `variavel`, `i`, `var2` |
-
-Empates previstos: palavra reservada × identificador (vence a palavra
-reservada); operadores-palavra `and`/`or`/`not`/`mod` × identificador (vence o
-operador). Os pares `=` × `==`, `:` × `:=`, `<` × `<=` × `<>`, `&` × `&&`,
-`|` × `||` são resolvidos pelo **maior casamento** (vence a cadeia mais longa).
 
 Observações desta linguagem:
 
@@ -46,9 +45,7 @@ Observações desta linguagem:
 
 | Arquivo | Descrição |
 |---|---|
-| `TipoToken.java` | Enum das classes léxicas, na ordem de prioridade. |
-| `Token.java` | Representação de um token (tipo, lexema, linha, coluna). |
-| `AnalisadorLexicoAFND.java` | O AFND e a simulação (maior casamento) + CLI. |
+| `AnalisadorLexicoAFND.java` | Os AFNDs (um por classe), o scanner e a CLI. |
 | `exemplo.txt` | Programa de exemplo usando todas as classes. |
 | `testes/` | 06 arquivos de teste (válidos e com erros léxicos). |
 
@@ -69,7 +66,7 @@ Rodar todos os testes:
     executar-testes.bat                  (Windows)
     ./executar-testes.sh                 (Linux/macOS)
 
-Imprimir a tabela de transições do AFND:
+Imprimir a tabela de transições de cada AFND:
 
     executar.bat --afnd
 
@@ -86,7 +83,7 @@ Para recompilar (requer JDK):
 
 | Opção | Efeito |
 |---|---|
-| `--afnd` | Imprime a tabela de transições e os estados finais do AFND. |
+| `--afnd` | Imprime a tabela de transições e os estados finais de cada AFND. |
 | *(arquivo)* | Analisa o arquivo informado. |
 
 O programa retorna **código de saída 0** quando não há erro léxico e **1** quando
