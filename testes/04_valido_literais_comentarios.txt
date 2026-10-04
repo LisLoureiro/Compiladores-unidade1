@@ -1,0 +1,17 @@
+program teste04;
+var c: char;
+    s: string;
+begin
+  /* comentario de uma linha */
+  c := 'a';
+
+  /* comentario de
+     varias
+     linhas, com simbolos := <= <> ( ) " dentro */
+  s := "texto com : = < > e palavras if while end";
+
+  c := ' ';
+  s := "";
+
+  write("fim");
+end.

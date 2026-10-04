@@ -1,10 +1,15 @@
 program teste03;
-var readx, while2: integer;
+var readx, read2, whilex, while2: integer;
 begin
   readx := 1;
-  while2 := 2;
+  read2 := 2;
+  whilex := 3;
+  while2 := 4;
   read(readx);
   write(while2);
-  if readx <= while2 then readx := readx + 1;
-  if readx <> 0 then while2 := while2 - 1;
+  if readx <= read2 then readx := readx + 1;
+  if readx >= whilex then whilex := whilex - 1;
+  if readx <> while2 then readx := read2;
+  if readx < whilex then readx := readx * 2;
+  if readx > while2 then while2 := while2 / 2;
 end.

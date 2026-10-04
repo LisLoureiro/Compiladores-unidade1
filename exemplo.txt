@@ -1,25 +1,43 @@
-program exemplo;
-var x, y, contador: integer;
-    media, taxa: real;
-begin
-  x := 13;
-  x := x mod 2;
-  y := 4;
-  contador := 0;
-  media := 24.40e-04;
-  taxa := 1.33;
+program Exemplo;
+var media_das_medias, Nota1, total: real;
+    contador, i: integer;
+    letra: char;
+    nome: string;
 
-  while contador < 10 do
+const PI := 3.1416;
+      E  := 2.71e1;
+
+/* Programa de exemplo do analisador lexico.
+   Exercita todas as classes lexicas:
+   palavras reservadas, identificadores, numeros inteiros e reais,
+   caracteres, cadeias, operadores e simbolos especiais. */
+begin
+  contador := 0;
+  total := 0.0;
+
+  while contador <= 10 do
   begin
-    x := x + 1;
+    total := total + contador * 1.5;
     contador := contador + 1;
   end;
 
-  if x = 0 or y <> 2 and not (media < 2.5) then
-    media := (x mod y) * 1.5
-  else
-    media := x / y + taxa;
+  repeat
+    total := total / 2;
+    contador := contador - 1;
+  until contador = 0;
 
-  read(x);
-  write(media);
+  for i := 1 to 10 do
+    total := total + i;
+
+  total := total mod 7;
+
+  if (total >= 100) and (total <> 0) or not (total < 0) then
+    writeln("Total grande")
+  else
+    write("Total = ", total);
+
+  letra := 'a';
+  nome := "Mini_Pascal";
+  read(media_das_medias);
+  writeln(nome, letra);
 end.

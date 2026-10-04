@@ -1,14 +1,30 @@
 program teste01;
-var a, b: integer;
-    r: real;
+var x, y, contador: integer;
+    media: real;
+    letra: char;
+    nome: string;
 begin
-  a := 10;
-  b := 3;
-  r := 24.40e-04;
-  if a >= b and not (r < 1.0) then
-    r := (a mod b) * 1.33
+  x := 13;
+  y := 4;
+  contador := 0;
+  media := 24.40e-04;
+  letra := 'z';
+  nome := "linguagem Mini_Pascal";
+
+  while contador < 10 do
+  begin
+    x := x + 1;
+    contador := contador + 1;
+  end;
+
+  x := x mod 3;
+
+  if x = 0 or (y <> 2 and not (x < 1)) then
+    media := (x / y) * 1.5
   else
-    r := a / b + 0.5;
-  read(a);
-  write(r);
+    media := x - y;
+
+  read(x);
+  write(nome);
+  writeln(media);
 end.

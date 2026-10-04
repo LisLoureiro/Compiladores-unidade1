@@ -1,0 +1,9 @@
+program teste07;
+var a, b, c, d: real;
+begin
+  a := 1.0e10;
+  b := 2.5E-3;
+  c := 3.14e+2;
+  d := a + b * c;
+  writeln(d);
+end.
