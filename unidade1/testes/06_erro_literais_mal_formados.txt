@@ -1,0 +1,9 @@
+program teste06;
+var c: char;
+    s: string;
+begin
+  s := "cadeia sem fechamento;
+  c := 'ab';
+  write(s);
+  /* comentario de bloco sem fechamento
+end.

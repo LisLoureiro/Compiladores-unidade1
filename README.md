@@ -76,3 +76,9 @@ programas com erro léxico ou sintático, o que facilita o uso em scripts.
 
 No console do Windows, rode `chcp 65001` (ou use os scripts `.bat`, que já o
 fazem) para exibir corretamente os caracteres acentuados.
+
+## Trabalho da Unidade 1
+
+O projeto da Unidade 1 (analisador léxico em AFD para a linguagem Mini_Pascal)
+está preservado em [`unidade1/`](unidade1/), com a documentação, os testes e os
+scripts próprios.
