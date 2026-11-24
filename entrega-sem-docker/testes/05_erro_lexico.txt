@@ -1,0 +1,7 @@
+program errolexico;
+var a : integer;
+begin
+  a := 1 @ 2;
+  a := "cadeia sem fim;
+  a := 3;
+end.

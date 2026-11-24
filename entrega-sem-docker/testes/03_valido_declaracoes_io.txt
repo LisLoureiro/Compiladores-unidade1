@@ -1,0 +1,14 @@
+program entradasaida;
+var x, y : integer;
+    ok : boolean;
+begin
+  read(x);
+  read(x, y);
+  readln;
+  readln(x, y);
+  write("Digite x: ");
+  writeln;
+  write(x, y, "fim");
+  writeln(x + 1, " e ", y);
+  x := x + 1;
+end.

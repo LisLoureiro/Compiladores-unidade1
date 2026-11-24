@@ -3,10 +3,10 @@
 **Universidade Estadual do Sudoeste da Bahia – UESB**
 **Departamento de Ciências Exatas – DCET**
 **Disciplina:** Compiladores — **Professores:** José Carlos Martins Oliveira
-**Curso:** Ciência da Computação — **Ano:** 2024 — **Período:** II
+**Curso:** Ciência da Computação — **Ano:** 2026 — **Período:** II
 **Trabalho Prático da II Unidade**
 
-**Integrantes da dupla:** {{NOME 1}} e {{NOME 2}}
+**Integrantes da dupla:** Lis Loureiro e Laiana
 
 ---
 
@@ -21,7 +21,7 @@ reservadas e de operadores e acrescentado o token de cadeia de caracteres
 das produções da gramática (conjuntos FIRST/FOLLOW e coleção canônica de itens
 LR(0)). Como a gramática do enunciado é ambígua, os conflitos da tabela são
 resolvidos por precedência e associatividade, no mesmo estilo da ferramenta
-Yacc, e cada conflito é documentado. Ao final, são apresentados oito arquivos de
+Yacc, e cada conflito é documentado. Ao final, são apresentados dez arquivos de
 teste, comentários sobre a linguagem e uma avaliação crítica do trabalho.
 
 **Palavras-chave:** Compiladores. Análise Sintática. SLR(1). Linguagem Sigma.
@@ -126,13 +126,15 @@ extra `S' -> S`, usada apenas para detectar a aceitação.
 
 ## 3. Arquitetura da implementação
 
-O programa foi dividido em cinco classes, todas em Java 8:
+O programa foi dividido em sete classes, todas em Java 8:
 
 | Arquivo | Responsabilidade |
 |---|---|
 | `TipoToken.java` | Enumeração das classes léxicas. A ordem também define a prioridade de desempate do léxico. |
-| `Token.java` | Estrutura de um token (tipo, lexema, linha, coluna, eventual mensagem de erro). |
+| `Token.java` | Estrutura de um token do léxico (tipo, lexema, linha, coluna, eventual mensagem de erro). |
 | `AnalisadorLexico.java` | AFND e sua simulação (maior casamento). Produz a lista de tokens. |
+| `TokenSintatico.java` | Token neutro consumido pelo parser (símbolo terminal, lexema, posição). Não conhece o léxico. |
+| `AdaptadorLexico.java` | Única ponte entre os tokens do léxico e os terminais da gramática. |
 | `Gramatica.java` | Produções, FIRST/FOLLOW, itens LR(0), tabela SLR(1) e resolução de conflitos. |
 | `AnalisadorSintatico.java` | Algoritmo de análise dirigido por tabela e interface de linha de comando. |
 
@@ -142,9 +144,21 @@ Mantém-se a abordagem do trabalho anterior: um **Autômato Finito Não
 Determinístico (AFND)** com um estado inicial que possui transições-ε para o
 sub-autômato de cada classe léxica. A cada posição do texto simula-se o
 conjunto de estados ativos (fecho-ε + movimento) e registra-se o maior prefixo
-aceito. Ajustes em relação ao 1º trabalho: novas palavras reservadas, o token
-`str`, remoção de `mod/and/or/not/real/#` e o operador `=` reclassificado como
-relacional.
+aceito. O AFND contempla **todas as classes léxicas** da especificação da I
+Unidade: palavra reservada, identificador, número inteiro, número real
+(`dígito+ '.' dígito+ (('e'|'E')('+'|'-')? dígito+)?`), operador aritmético
+(`+ - * / mod`), relacional (`= >= > < <= <>`), lógico (`and`, `or`, `not`),
+símbolo especial (`( ) , ; :`), atribuição (`:=`) e fim (`.`). Em relação ao
+projeto original, acrescentaram-se as palavras reservadas de Sigma, o token
+`str`, os números reais e os operadores `mod/and/or/not`; o operador `=` passou
+a ser relacional e o marcador de comentário `#` do Mini_Pascal foi removido,
+pois não pertence à linguagem Sigma.
+
+A gramática da II Unidade **não referencia** números reais, operadores lógicos
+nem o operador `mod`: o léxico os reconhece (cumprindo a especificação da I
+Unidade), mas o parser só consome os terminais que aparecem nas produções. Essa
+diferença é proposital — o léxico é um componente autônomo, reaproveitado pela
+análise sintática.
 
 ### 3.2 Construção da tabela SLR(1)
 
@@ -169,6 +183,24 @@ O parser usa a pilha de estados clássica. Para cada passo consulta
 * **aceitar** → o programa é válido;
 * **erro** → emite mensagem com linha, coluna, lexema ofensor e a lista de
   terminais esperados naquela situação.
+
+### 3.4 Independência entre as fases
+
+A análise é dividida em duas fases executáveis separadamente:
+
+1. **Fase 1 — léxica:** transforma o texto-fonte na lista de tokens (`Token`).
+2. **Fase 2 — sintática:** consome apenas `TokenSintatico`.
+
+O núcleo do parser (`analisar`) **não conhece o analisador léxico**: ele recebe
+uma `List<TokenSintatico>`, na qual cada elemento já traz o símbolo terminal da
+gramática, o lexema e a posição. A conversão de `Token` (léxico) para
+`TokenSintatico` (sintático) está isolada em `AdaptadorLexico`, a única classe
+que referencia os dois mundos. Assim, trocar o léxico não exige alterar o
+parser, e o parser poderia ser alimentado por qualquer outra fonte de tokens.
+
+O `main` de `AnalisadorSintatico` funciona como raiz de composição: na fase
+`sintatico` ele monta a sequência de tokens internamente (léxico + adaptador) e
+a entrega ao parser; com `--fase lexico` executa apenas a primeira fase.
 
 ## 4. Instalação e utilização
 
@@ -215,6 +247,7 @@ java AnalisadorSintatico [arquivo] [opções]
 
 | Opção | Efeito |
 |---|---|
+| `--fase lexico\|sintatico\|ambas` | Executa apenas a fase indicada (padrão: `ambas`). |
 | `--tokens` | Imprime a tabela de tokens reconhecidos. |
 | `--gramatica` | Imprime produções, FIRST e FOLLOW. |
 | `--tabela` | Imprime a tabela SLR(1) e os conflitos resolvidos. |
@@ -233,6 +266,35 @@ Programa sintaticamente VÁLIDO.
 Tokens analisados: 83 | Reduções: 71 | Estados da tabela: 101
 ```
 
+### 4.5 Interface web por fases
+
+Além da linha de comando, há uma interface web local (`interface.html`,
+servida por `servidor.py`, que usa apenas a biblioteca padrão do Python 3 e
+executa o analisador Java):
+
+```
+python servidor.py            # abre http://localhost:8000
+python servidor.py --porta 9000 --no-browser
+```
+
+A interface trata as duas fases como fases de um jogo (tema Super Mario, com a
+identidade "Zecas Bros"): a abertura mostra a tela de título com o professor
+Zeca em um cenário de plataforma; um clique leva ao mapa do mundo no estilo
+*Super Mario World* (ilhas, mar, ponte, castelo e fases como nós numerados), e
+cada fase é uma etapa do analisador, com uma introdução própria. A tela de
+análise é ambientada como a sala de aula do Zeca — quadro verde, piso de
+madeira, estante e mesa do professor. O botão **ANALISAR** executa somente a
+fase selecionada, e a barra de carregamento mostra o Zeca caminhando enquanto o
+analisador roda.
+
+* **Fase 1 — análise léxica:** envia `"fase": "lexico"` e recebe apenas a
+  sequência de tokens e os erros léxicos.
+* **Fase 2 — análise sintática:** envia `"fase": "sintatico"` e recebe os
+  passos do SLR(1) e o veredito.
+
+O servidor expõe `POST /api/analisar` (campos `codigo`, `opcoes`, `fase`),
+`GET /api/testes` e `POST /api/testes/executar` (roda a suíte no servidor).
+
 ## 5. O que foi feito e o que não foi feito
 
 ### 5.1 O que foi feito
@@ -247,7 +309,12 @@ Tokens analisados: 83 | Reduções: 71 | Estados da tabela: 101
   Yacc), com relatório de todos os conflitos (opção `--tabela`).
 * Mensagens de erro sintático com linha, coluna, lexema ofensor e terminais
   esperados.
-* Oito arquivos de teste (válidos e com erros), scripts de execução e imagem
+* Separação em **duas fases independentes** (`--fase lexico|sintatico|ambas`):
+  o parser consome apenas `TokenSintatico`, e a conversão do léxico fica
+  isolada em `AdaptadorLexico`.
+* Interface web local por fases (`interface.html` + `servidor.py`), com uma
+  aba/fase para a análise léxica e outra para a sintática.
+* Dez arquivos de teste (válidos e com erros), scripts de execução e imagem
   Docker.
 * Arquivos `.class` pré-compilados (bytecode Java 8), executáveis sem
   recompilação.
@@ -269,8 +336,9 @@ SLR(1) e análise de todos os construtores da linguagem (declarações, comandos
 compostos, atribuição, leitura/escrita, condicional com `else`, repetição e
 expressões com precedência e parênteses); detecção de erros léxicos e
 sintáticos com linha, coluna, lexema e terminais esperados; as opções
-`--tokens`, `--gramatica`, `--tabela`, `--passos` e `--automato`; execução via
-JRE 8 (arquivos `.class` prontos) e via Docker; os oito arquivos de teste foram
+`--fase lexico|sintatico|ambas`, `--tokens`, `--gramatica`, `--tabela`,
+`--passos` e `--automato`; a interface web por fases; execução via JRE 8
+(arquivos `.class` prontos) e via Docker; os dez arquivos de teste foram
 validados.
 
 **Não está funcionando / não implementado:** recuperação de erros (a análise
@@ -361,13 +429,17 @@ enunciado e estão documentadas para transparência.
 * **`B -> E rel E | id`:** uma condição pode ser um `id` isolado ou uma
   comparação entre duas expressões aritméticas. Uma expressão booleana que não
   seja um `id` sozinho (por exemplo `if a + b then`) **não** é válida. Também
-  não há operadores lógicos (`and`, `or`, `not`), que não constam da gramática.
+  não há operadores lógicos (`and`, `or`, `not`) nas produções: o léxico os
+  reconhece (classe "Operador Lógico"), mas a gramática não os utiliza.
 * **Comparações encadeadas** (`a < b < c`) não são válidas, pois o resultado de
   `B` não é, ele próprio, operando de outra comparação.
 * **Estruturas de controle terminam com `;`.** Cada comando é seguido de `;`
   (`L -> C ;`), inclusive o último antes de `end`.
-* **Números:** apenas inteiros (`num = dígito+`); não há números reais, embora o
-  tipo `integer` conviva com `boolean`.
+* **Números:** a gramática aceita apenas inteiros (`num = dígito+`). O léxico
+  reconhece números reais (`1.33`, `24.40e-04`) como a classe "Número Real",
+  mas, como a gramática não possui produção que os aceite, um literal real é
+  rejeitado na análise sintática. O tipo `integer` convive com `boolean` sem
+  verificação semântica.
 * **Identificadores** seguem `letra (letra | dígito)*`: **não** é permitido
   sublinhado (`_`), conforme o léxico do 1º trabalho.
 * **Cadeias de caracteres** (`str`) são definidas neste trabalho como texto
@@ -393,7 +465,18 @@ dos 101 estados e dos conflitos) e as mensagens de erro com linha, coluna e
 terminais esperados. Como limitação, o analisador não faz recuperação de erros
 (interrompe no primeiro) e não realiza análise semântica.
 
-*(Sugestão: ajuste este trecho com a avaliação pessoal dos integrantes.)*
+Em retrospecto, a dupla avalia que o maior aprendizado foi implementar a tabela
+SLR(1) de fato — calculando FIRST/FOLLOW, a coleção canônica de itens LR(0) e as
+ações — em vez de recorrer a uma ferramenta pronta. Isso tornou visível por que
+a gramática do enunciado, sendo ambígua, exige decisões explícitas de
+desambiguação e como essas decisões afetam o comportamento do analisador. O
+trabalho também mostrou o valor de separar o léxico do parser: a interface
+`TokenSintatico`/`AdaptadorLexico` permitiu evoluir o léxico (números reais,
+`mod`, operadores lógicos) sem tocar no núcleo sintático. Como pontos a
+melhorar, a dupla aponta a ausência de recuperação de erros e a dependência de
+uma heurística no desempate do conflito reduzir/reduzir; uma alternativa seria
+reescrever a expressão em níveis de precedência, tornando a gramática não
+ambígua.
 
 ## 9. Conjunto de testes
 
@@ -409,8 +492,13 @@ Pasta `testes/` (o campo “Resultado” refere-se ao esperado):
 | `06_erro_sintatico.txt` | Falta de `;` entre comandos. | Erro sintático |
 | `07_erro_fim_inesperado.txt` | Ausência de `end.` (fim de arquivo inesperado). | Erro sintático |
 | `08_valido_sem_declaracoes.txt` | Programa sem bloco de declarações. | Válido |
+| `09_valido_operadores_relacionais.txt` | Condições com os seis operadores relacionais (`= <> >= <= > <`). | Válido |
+| `10_erro_sintatico_mod.txt` | Uso de `mod` (reconhecido pelo léxico, mas fora da GLC) — rejeição sintática. | Erro sintático |
 
 Para executar todos: `executar-testes.bat` (Windows) ou `./executar-testes.sh`.
+Os scripts deduzem o veredito esperado do nome do arquivo (`valido`,
+`erro_lexico`, `erro_sintatico`), comparam com a saída do analisador e exibem um
+resumo final.
 
 ## Referências
 
@@ -419,4 +507,4 @@ Para executar todos: `executar-testes.bat` (Windows) ou `./executar-testes.sh`.
 2. OLIVEIRA, J. C. M. **Notas de aula da disciplina de Compiladores**. UESB,
    2024.
 3. UESB/DCET. **Trabalho Prático da II Unidade — Especificação da linguagem
-   Sigma**, 2024.
+   Sigma**, 2026.

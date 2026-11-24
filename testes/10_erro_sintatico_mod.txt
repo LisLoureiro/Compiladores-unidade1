@@ -1,0 +1,5 @@
+program foradaglc;
+var a : integer;
+begin
+  a := 7 mod 2;
+end.

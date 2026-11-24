@@ -1,0 +1,18 @@
+program controle;
+var i, n, achou : integer;
+    continua : boolean;
+begin
+  n := 10;
+  i := 0;
+  while i < n do
+  begin
+    i := i + 1;
+    if i > 5 then
+      if i < 8 then
+        achou := i
+      else
+        achou := 0;
+  end;
+  while continua do
+    i := 0;
+end.

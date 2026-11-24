@@ -1,0 +1,14 @@
+program relacionais;
+var a, b : integer;
+begin
+  a := 10;
+  b := 3;
+  if a = b then a := 0;
+  if a <> b then a := 1;
+  if a >= b then a := 2;
+  if a <= b then a := 3;
+  if a > b then a := 4;
+  if a < b then a := 5;
+  while a <= b do
+    a := a + 1;
+end.

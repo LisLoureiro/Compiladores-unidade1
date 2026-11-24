@@ -10,9 +10,15 @@ import java.util.List;
 /**
  * Analisador Sintático SLR(1) da linguagem Sigma.
  *
- * O analisador é dirigido por tabela: a tabela ACTION/GOTO é construída
- * dinamicamente por {@link Gramatica} a partir das produções, e a análise
- * usa o algoritmo clássico de pilha (estados) + fluxo de tokens:
+ * O parser é INDEPENDENTE DO ANALISADOR LÉXICO: a análise consome apenas uma
+ * lista de {@link TokenSintatico}, que carrega o símbolo terminal da gramática
+ * e a posição no texto. A conversão dos tokens do léxico fica em
+ * {@link AdaptadorLexico}; o núcleo do parser não conhece {@link TipoToken},
+ * o AFND nem a classe {@link Token}.
+ *
+ * A tabela ACTION/GOTO é construída dinamicamente por {@link Gramatica} a
+ * partir das produções, e a análise usa o algoritmo clássico de pilha
+ * (estados) + fluxo de tokens:
  *
  *   - EMPILHAR estado  : avança na entrada empilhando o novo estado;
  *   - REDUZIR A -> α   : desempilha |α| estados e empilha GOTO[topo, A];
@@ -23,12 +29,17 @@ import java.util.List;
  *   java AnalisadorSintatico [arquivo] [opções]
  *
  * Opções:
+ *   --fase lexico|sintatico|ambas  executa só a fase indicada (padrão: ambas)
  *   --tokens      imprime a tabela de tokens reconhecidos
  *   --gramatica   imprime produções, FIRST e FOLLOW
  *   --tabela      imprime a tabela SLR(1) e os conflitos resolvidos
  *   --passos      imprime o passo a passo da análise
  *   --automato    imprime a tabela de transições do AFND do léxico
  *   -h, --help    mostra esta ajuda
+ *
+ * A fase léxica pode ser usada sozinha (--fase lexico) para gerar a sequência
+ * de tokens; a fase sintática (--fase sintatico) monta essa sequência
+ * internamente e alimenta o parser, que trabalha apenas sobre tokens.
  */
 public final class AnalisadorSintatico {
 
@@ -54,8 +65,25 @@ public final class AnalisadorSintatico {
     public static void main(String[] args) throws IOException {
         List<String> opcoes = new ArrayList<String>();
         String arquivo = null;
-        for (String a : args) {
-            if (a.startsWith("-")) {
+        String fase = "ambas";
+
+        for (int i = 0; i < args.length; i++) {
+            String a = args[i];
+            if (a.equals("--fase")) {
+                if (i + 1 >= args.length) {
+                    System.err.println("Uso: --fase lexico|sintatico|ambas");
+                    System.exit(2);
+                    return;
+                }
+                fase = args[++i].toLowerCase();
+                if (!fase.equals("lexico") && !fase.equals("sintatico")
+                        && !fase.equals("ambas")) {
+                    System.err.println("Fase inválida: '" + fase
+                            + "'. Use lexico, sintatico ou ambas.");
+                    System.exit(2);
+                    return;
+                }
+            } else if (a.startsWith("-")) {
                 opcoes.add(a);
             } else if (arquivo == null) {
                 arquivo = a;
@@ -86,17 +114,11 @@ public final class AnalisadorSintatico {
             System.out.println("Nenhum arquivo informado. Analisando o programa de exemplo embutido.\n");
         }
 
-        Gramatica gramatica = new Gramatica();
-        if (opcoes.contains("--gramatica")) {
-            gramatica.imprimirGramatica();
-        }
-        if (opcoes.contains("--tabela")) {
-            gramatica.imprimirTabela();
-        }
-
-        // Etapa 1: análise léxica.
+        // ------------------------------------------------------------------
+        // Fase 1: análise léxica.
+        // ------------------------------------------------------------------
         List<Token> tokens = AnalisadorLexico.analisar(afnd, texto);
-        if (opcoes.contains("--tokens")) {
+        if (fase.equals("lexico") || opcoes.contains("--tokens")) {
             imprimirTokens(tokens);
         }
 
@@ -107,6 +129,19 @@ public final class AnalisadorSintatico {
                         + ": " + t.erro + " ('" + t.lexema + "')");
             }
         }
+
+        if (fase.equals("lexico")) {
+            if (!errosLexicos.isEmpty()) {
+                System.out.println("Foram encontrados " + errosLexicos.size()
+                        + " erro(s) léxico(s):");
+                for (String e : errosLexicos) System.out.println(e);
+                System.exit(1);
+            }
+            System.out.println("Análise léxica concluída: " + tokens.size()
+                    + " token(s) reconhecido(s).");
+            return;
+        }
+
         if (!errosLexicos.isEmpty()) {
             System.out.println("Foram encontrados " + errosLexicos.size()
                     + " erro(s) léxico(s):");
@@ -116,17 +151,29 @@ public final class AnalisadorSintatico {
             return;
         }
 
-        // Etapa 2: análise sintática SLR(1).
-        analisar(gramatica, tokens, opcoes.contains("--passos"));
+        // ------------------------------------------------------------------
+        // Fase 2: análise sintática (independente do léxico).
+        // ------------------------------------------------------------------
+        List<TokenSintatico> entrada = AdaptadorLexico.converter(tokens);
+
+        Gramatica gramatica = new Gramatica();
+        if (opcoes.contains("--gramatica")) {
+            gramatica.imprimirGramatica();
+        }
+        if (opcoes.contains("--tabela")) {
+            gramatica.imprimirTabela();
+        }
+
+        analisar(gramatica, entrada, opcoes.contains("--passos"));
     }
 
     // ------------------------------------------------------------------
-    // Análise sintática
+    // Análise sintática (núcleo independente do léxico)
     // ------------------------------------------------------------------
-    private static void analisar(Gramatica g, List<Token> tokens, boolean passos) {
+    private static void analisar(Gramatica g, List<TokenSintatico> tokens, boolean passos) {
         // Sequência de terminais de entrada + marcador de fim "$".
         List<String> entrada = new ArrayList<String>();
-        for (Token t : tokens) entrada.add(terminalDe(t));
+        for (TokenSintatico t : tokens) entrada.add(t.simbolo);
         entrada.add(Gramatica.FIM_ENTRADA);
 
         Deque<Integer> pilha = new ArrayDeque<Integer>();
@@ -182,13 +229,13 @@ public final class AnalisadorSintatico {
         }
     }
 
-    private static void reportarErro(Gramatica g, int estado, List<Token> tokens,
+    private static void reportarErro(Gramatica g, int estado, List<TokenSintatico> tokens,
                                      List<String> entrada, int i) {
         String simbolo = entrada.get(i);
         if (i < tokens.size()) {
-            Token t = tokens.get(i);
+            TokenSintatico t = tokens.get(i);
             System.out.println("\nERRO SINTÁTICO na linha " + t.linha + ", coluna " + t.coluna
-                    + ": token inesperado '" + t.lexema + "' (" + t.classeNome() + ").");
+                    + ": token inesperado '" + t.lexema + "' (" + t.classe + ").");
         } else {
             System.out.println("\nERRO SINTÁTICO: fim inesperado do arquivo.");
         }
@@ -201,24 +248,6 @@ public final class AnalisadorSintatico {
             System.out.println("Terminais esperados neste ponto: " + join(esperados));
         }
         System.out.println("\nPrograma sintaticamente INVÁLIDO.");
-    }
-
-    // ------------------------------------------------------------------
-    // Mapeamento token -> terminal da gramática
-    // ------------------------------------------------------------------
-    private static String terminalDe(Token t) {
-        switch (t.tipo) {
-            case PALAVRA_RESERVADA:  return t.lexema.toLowerCase();
-            case IDENTIFICADOR:      return "id";
-            case NUMERO:             return "num";
-            case STRING:             return "str";
-            case ATRIBUICAO:         return ":=";
-            case OPERADOR_RELACIONAL:
-            case OPERADOR_ARITMETICO:
-            case SIMBOLO_ESPECIAL:
-            case FIM:                return t.lexema;
-            default:                 return t.lexema;
-        }
     }
 
     // ------------------------------------------------------------------
@@ -247,6 +276,7 @@ public final class AnalisadorSintatico {
         System.out.println("Uso: java AnalisadorSintatico [arquivo] [opções]");
         System.out.println();
         System.out.println("Opções:");
+        System.out.println("  --fase F      executa apenas a fase F: lexico, sintatico ou ambas");
         System.out.println("  --tokens      imprime a tabela de tokens reconhecidos");
         System.out.println("  --gramatica   imprime produções, FIRST e FOLLOW");
         System.out.println("  --tabela      imprime a tabela SLR(1) e os conflitos resolvidos");
@@ -255,6 +285,8 @@ public final class AnalisadorSintatico {
         System.out.println("  -h, --help    mostra esta ajuda");
         System.out.println();
         System.out.println("Sem arquivo, analisa um programa de exemplo embutido.");
+        System.out.println("O parser SLR(1) é independente do léxico: consome apenas tokens");
+        System.out.println("(TokenSintatico). O adaptador liga as duas fases na linha de comando.");
     }
 
     private static String repetir(char c, int n) {

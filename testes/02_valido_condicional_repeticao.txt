@@ -1,5 +1,6 @@
 program controle;
 var i, n, achou : integer;
+    continua : boolean;
 begin
   n := 10;
   i := 0;
@@ -12,6 +13,6 @@ begin
       else
         achou := 0;
   end;
-  while achou do
-    achou := 0;
+  while continua do
+    i := 0;
 end.

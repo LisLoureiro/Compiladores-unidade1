@@ -1,9 +1,14 @@
-# Analisador Léxico da linguagem Mini_Pascal — Documentação
+# Analisador Léxico da linguagem Mini_Pascal — Documentação (material legado)
+
+> **Aviso:** este material é de uma versão anterior da disciplina (AFD para
+> Mini_Pascal) e **não faz parte da entrega atual**. O léxico oficial da I
+> Unidade (AFND para Sigma) e o parser da II Unidade estão na pasta raiz do
+> projeto.
 
 Trabalho Prático da I Unidade — disciplina de **Compiladores** (UESB/DCET).
 
 **Integrantes:** Lis Loureiro e Laiana
-**Data:** _(preencher)_
+**Data:** _(versão anterior)_
 
 ---
 

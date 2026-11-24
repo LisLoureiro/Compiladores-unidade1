@@ -48,16 +48,23 @@ RE_ERRO_SINTATICO = re.compile(
 # ----------------------------------------------------------------------
 # Execução do analisador Java
 # ----------------------------------------------------------------------
-def executar_java(caminho, opcoes_extra=()):
-    """Roda o analisador sobre um arquivo e devolve texto/status/tempo."""
+def executar_java(caminho, opcoes_extra=(), fase="ambas"):
+    """Roda o analisador sobre um arquivo e devolve texto/status/tempo.
+
+    fase="lexico" executa só a fase 1; fase="sintatico" executa só a fase 2;
+    qualquer outro valor executa o pipeline completo (padrão).
+    """
     comando = [
         "java",
         "-Dfile.encoding=UTF-8",
         "AnalisadorSintatico",
         caminho,
-        "--tokens",
-        "--passos",
     ]
+    if fase in ("lexico", "sintatico"):
+        comando.extend(["--fase", fase])
+    comando.append("--tokens")
+    if fase != "lexico":
+        comando.append("--passos")
     for opcao in opcoes_extra:
         if opcao in OPCOES_PERMITIDAS and opcao not in comando:
             comando.append(opcao)
@@ -373,6 +380,9 @@ class Manipulador(BaseHTTPRequestHandler):
             opcoes = [
                 o for o in corpo.get("opcoes", []) if o in OPCOES_PERMITIDAS
             ]
+            fase = corpo.get("fase") or "ambas"
+            if fase not in ("lexico", "sintatico", "ambas"):
+                raise ValueError("Campo 'fase' inválido (use lexico, sintatico ou ambas).")
 
             temporario = tempfile.NamedTemporaryFile(
                 "w", suffix=".txt", delete=False, encoding="utf-8", newline=""
@@ -380,7 +390,7 @@ class Manipulador(BaseHTTPRequestHandler):
             try:
                 temporario.write(codigo)
                 temporario.close()
-                resultado = executar_java(temporario.name, opcoes)
+                resultado = executar_java(temporario.name, opcoes, fase)
             finally:
                 try:
                     os.unlink(temporario.name)
@@ -388,17 +398,17 @@ class Manipulador(BaseHTTPRequestHandler):
                     pass
 
             tokens, passos = parsear_tokens_e_passos(resultado["saida"])
-            self._json(
-                {
-                    "tokens": tokens,
-                    "passos": passos,
-                    "sintatico": resumo_sintatico(resultado["saida"]),
-                    "saida": resultado["saida"],
-                    "stderr": resultado["stderr"],
-                    "codigoSaida": resultado["codigoSaida"],
-                    "tempoMs": resultado["tempoMs"],
-                }
-            )
+            resposta = {
+                "fase": fase,
+                "tokens": tokens,
+                "passos": passos,
+                "sintatico": None if fase == "lexico" else resumo_sintatico(resultado["saida"]),
+                "saida": resultado["saida"],
+                "stderr": resultado["stderr"],
+                "codigoSaida": resultado["codigoSaida"],
+                "tempoMs": resultado["tempoMs"],
+            }
+            self._json(resposta)
         except ValueError as e:
             self._json({"erro": str(e)}, 400)
         except RuntimeError as e:

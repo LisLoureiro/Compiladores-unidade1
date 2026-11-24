@@ -19,7 +19,10 @@ public enum TipoToken {
     /** Operadores relacionais: = &lt; &lt;= &gt; &gt;= &lt;&gt; */
     OPERADOR_RELACIONAL("Operador Relacional"),
 
-    /** Operadores aritméticos: + - * / */
+    /** Operadores lógicos escritos como palavra: and, or, not. */
+    OPERADOR_LOGICO("Operador Lógico"),
+
+    /** Operadores aritméticos: + - * / e a palavra-chave mod. */
     OPERADOR_ARITMETICO("Operador Aritmético"),
 
     /** Símbolos especiais: ( ) , ; : */
@@ -30,6 +33,9 @@ public enum TipoToken {
 
     /** Número inteiro (sequência de dígitos). */
     NUMERO("Número"),
+
+    /** Número real (ex.: 1.33, 24.40e-04). */
+    NUMERO_REAL("Número Real"),
 
     /** Identificador. */
     IDENTIFICADOR("Identificador"),

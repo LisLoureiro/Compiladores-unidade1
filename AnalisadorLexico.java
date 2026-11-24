@@ -10,14 +10,15 @@ import java.util.function.IntPredicate;
 /**
  * Analisador Léxico da linguagem Sigma.
  *
- * Implementação baseada em um Autômato Finito NÃO Determinístico (AFND),
- * reaproveitada do 1º trabalho e ajustada à gramática da II Unidade:
+ * Implementação baseada em um Autômato Finito NÃO Determinístico (AFND).
+ * O autômato contempla todas as classes léxicas da linguagem: palavra
+ * reservada, identificador, inteiro, real, operadores aritméticos (+ - * /
+ * e mod), relacionais, lógicos (and, or, not), símbolos especiais,
+ * atribuição, string e fim de programa.
  *
- *   - Novas palavras reservadas: program, var, integer, boolean, begin, end,
- *     if, then, else, while, do, read, readln, write, writeln.
- *   - Novo token STRING (literal entre aspas duplas).
- *   - Removidos os tokens que não existem em Sigma (mod, and, or, not, real, #).
- *   - "=" passa a ser exclusivamente OPERADOR_RELACIONAL.
+ * A GLC da II Unidade não referencia real/mod/and/or/not; esses tokens
+ * continuam sendo reconhecidos pelo léxico, mas, se aparecerem na entrada,
+ * a análise sintática os rejeita. "=" é exclusivamente OPERADOR_RELACIONAL.
  *
  * O AFND tem um estado inicial (q0) com transições-ε para o sub-autômato de
  * cada classe léxica. A simulação percorre o texto mantendo o CONJUNTO de
@@ -186,6 +187,14 @@ public final class AnalisadorLexico {
             caminho(m, p, TipoToken.PALAVRA_RESERVADA, true);
         }
 
+        // 1b) Operadores escritos como palavra: mod (aritmético) e
+        // and/or/not (lógicos). Empatados no comprimento com o ramo de
+        // identificador, vencem pela prioridade declarada em TipoToken.
+        caminho(m, "mod", TipoToken.OPERADOR_ARITMETICO, true);
+        caminho(m, "and", TipoToken.OPERADOR_LOGICO, true);
+        caminho(m, "or", TipoToken.OPERADOR_LOGICO, true);
+        caminho(m, "not", TipoToken.OPERADOR_LOGICO, true);
+
         // 2) Identificador: letra (letra | dígito)*
         int i0 = m.novoEstado(), i1 = m.novoEstado();
         m.epsilon(m.inicial, i0);
@@ -200,7 +209,30 @@ public final class AnalisadorLexico {
         m.aresta(n1, n1, digito, "dígito");
         m.marcarFinal(n1, TipoToken.NUMERO);
 
-        // 4) String: '"' (qualquer caractere exceto '"' e nova linha)* '"'
+        // 4) Número real: dígito+ '.' dígito+ ( (e|E)(+|-)? dígito+ )?
+        int r0 = m.novoEstado(), r1 = m.novoEstado();
+        int r2 = m.novoEstado(), r3 = m.novoEstado();
+        m.epsilon(m.inicial, r0);
+        m.aresta(r0, r1, digito, "dígito");
+        m.aresta(r1, r1, digito, "dígito");
+        m.aresta(r1, r2, igual('.', false), "'.'");
+        m.aresta(r2, r3, digito, "dígito");
+        m.aresta(r3, r3, digito, "dígito");
+        m.marcarFinal(r3, TipoToken.NUMERO_REAL);
+
+        int rExp = m.novoEstado(), rSinal = m.novoEstado(), rExpDig = m.novoEstado();
+        IntPredicate expoente = new IntPredicate() {
+            public boolean test(int c) { return c == 'e' || c == 'E'; }
+        };
+        m.aresta(r3, rExp, expoente, "e|E");
+        m.aresta(rExp, rSinal, igual('+', false), "'+'");
+        m.aresta(rExp, rSinal, igual('-', false), "'-'");
+        m.aresta(rExp, rExpDig, digito, "dígito");
+        m.aresta(rSinal, rExpDig, digito, "dígito");
+        m.aresta(rExpDig, rExpDig, digito, "dígito");
+        m.marcarFinal(rExpDig, TipoToken.NUMERO_REAL);
+
+        // 5) String: '"' (qualquer caractere exceto '"' e nova linha)* '"'
         int s0 = m.novoEstado(), s1 = m.novoEstado(), s2 = m.novoEstado();
         m.epsilon(m.inicial, s0);
         m.aresta(s0, s1, igual('"', false), "aspa");
@@ -210,25 +242,25 @@ public final class AnalisadorLexico {
         m.aresta(s1, s2, igual('"', false), "aspa");
         m.marcarFinal(s2, TipoToken.STRING);
 
-        // 5) Operadores aritméticos: + - * /
+        // 6) Operadores aritméticos: + - * /
         for (String op : new String[] {"+", "-", "*", "/"}) {
             caminho(m, op, TipoToken.OPERADOR_ARITMETICO, false);
         }
 
-        // 6) Operadores relacionais: = >= > < <= <>
+        // 7) Operadores relacionais: = >= > < <= <>
         for (String op : new String[] {"=", ">=", ">", "<", "<=", "<>"}) {
             caminho(m, op, TipoToken.OPERADOR_RELACIONAL, false);
         }
 
-        // 7) Símbolos especiais: ( ) , ; :
+        // 8) Símbolos especiais: ( ) , ; :
         for (String s : new String[] {"(", ")", ",", ";", ":"}) {
             caminho(m, s, TipoToken.SIMBOLO_ESPECIAL, false);
         }
 
-        // 8) Atribuição: :=
+        // 9) Atribuição: :=
         caminho(m, ":=", TipoToken.ATRIBUICAO, false);
 
-        // 9) Fim de programa: .
+        // 10) Fim de programa: .
         caminho(m, ".", TipoToken.FIM, false);
 
         return m;

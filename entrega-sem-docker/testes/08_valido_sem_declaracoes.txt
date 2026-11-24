@@ -1,0 +1,4 @@
+program simples;
+begin
+  writeln("ola");
+end.
